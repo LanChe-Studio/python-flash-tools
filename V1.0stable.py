@@ -574,7 +574,7 @@ class FlashTool(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Python Flash Tools V1.0")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 600, 400)
         
         # 初始化变量
         self.current_mode = None
@@ -1297,7 +1297,7 @@ class FlashTool(QMainWindow):
     
     def _show_about(self):
         """显示关于信息"""
-        QMessageBox.information(self, "关于", "Python Flash Tools V1.0\nPowered by LanChe ")
+        QMessageBox.information(self, "关于", "Python Flash Tools V1.0\nPowered by LanChe-Studio")
     
     def _enter_bootloader(self):
         """进入Bootloader模式"""
