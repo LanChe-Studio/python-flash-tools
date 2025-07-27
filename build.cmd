@@ -1,0 +1,1 @@
+pyinstaller --onefile --upx-dir=/path/to/upx main.py
