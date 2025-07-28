@@ -1,4 +1,4 @@
-<img width="1024" height="1024" alt="fe713dda-d347-43c6-8224-2eaf92c0cf03" src="https://github.com/user-attachments/assets/e9e0c9bf-4cb3-4e70-8736-29d5958f4a2d" />
+<img width="320" height="320" alt="fe713dda-d347-43c6-8224-2eaf92c0cf03" src="https://github.com/user-attachments/assets/e9e0c9bf-4cb3-4e70-8736-29d5958f4a2d" />
 Python Flash Tools——Python刷机工具箱  
 使用Python开发的刷机工具    
 会自动下载依赖文件      
