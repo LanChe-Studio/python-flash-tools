@@ -1018,7 +1018,7 @@ class FlashTool(QMainWindow):
         # MTK命令行标签页 (原Bootrom刷机标签页)
         mtk_tab = QWidget()
         self._init_mtk_tab(mtk_tab)
-        self.tabs.addTab(mtk_tab, "Bootrom工具")
+        self.tabs.addTab(mtk_tab, "BootROM工具")
         
         # 底部状态栏
         self.status_bar = QLabel()

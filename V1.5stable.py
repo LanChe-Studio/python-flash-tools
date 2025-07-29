@@ -17,11 +17,11 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHB
                             QLabel, QPushButton, QComboBox, QProgressBar, \
                             QFileDialog, QMessageBox, QGroupBox, QDialog, \
                             QTabWidget, QTextEdit, QLineEdit, QPlainTextEdit, QCheckBox, \
-                            QGridLayout, QSplashScreen, QStyleFactory
+                            QGridLayout, QStyleFactory
 
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QSettings, QTimer, QThread, QMetaObject
 from PyQt5.QtCore import Q_ARG
-from PyQt5.QtGui import QIcon, QTextCursor, QFont, QPixmap, QColor, QPalette
+from PyQt5.QtGui import QIcon, QTextCursor, QFont, QColor, QPalette
 
 def backup_partition_fastboot(self, partition, output_path):
     """使用Fastboot备份分区 - 修复分区大小解析问题"""
@@ -110,29 +110,29 @@ class DownloadDialog(QDialog):
         # 提示信息
         label = QLabel(f"以下工具缺失: {', '.join(tools)}\n是否现在下载?")
         label.setWordWrap(True)
-        label.setStyleSheet("font-size: 12pt; padding: 10px;")
+        label.setStyleSheet("font-size: 10pt; padding: 8px;")
         layout.addWidget(label)
         
         # 进度条
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setStyleSheet("height: 25px;")
+        self.progress_bar.setStyleSheet("height: 22px;")
         layout.addWidget(self.progress_bar)
         
         # 日志输出
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
         self.log_output.setVisible(False)
-        self.log_output.setStyleSheet("font-family: monospace; font-size: 10pt;")
+        self.log_output.setStyleSheet("font-family: monospace; font-size: 9pt;")
         layout.addWidget(self.log_output)
         
         # 按钮布局
         btn_layout = QHBoxLayout()
         self.download_btn = QPushButton("现在下载")
-        self.download_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;")
+        self.download_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px;")
         self.download_btn.clicked.connect(self.start_download)
         self.later_btn = QPushButton("稍后设置")
-        self.later_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
+        self.later_btn.setStyleSheet("background-color: #f44336; color: white; padding: 6px;")
         self.later_btn.clicked.connect(self.reject)
         
         btn_layout.addStretch()
@@ -206,7 +206,7 @@ class DownloadDialog(QDialog):
     
     def download_adb(self):
         """下载ADB工具"""
-        system = platform.system().lower()
+        system = "windows"
         mirrors = [
             f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
             f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
@@ -217,7 +217,7 @@ class DownloadDialog(QDialog):
     
     def download_fastboot(self):
         """下载Fastboot工具"""
-        system = platform.system().lower()
+        system = "windows"
         mirrors = [
             f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
             f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
@@ -298,9 +298,7 @@ class DownloadDialog(QDialog):
                             tool_path = os.path.join(root, file)
                     
                     if tool_path:
-                        # 设置权限(非Windows)
-                        if platform.system().lower() != "windows":
-                            os.chmod(tool_path, 0o755)
+                        # Windows平台不需要设置权限
                         self.log(f"找到工具: {tool_path}")
                         break
                 if tool_path:
@@ -325,24 +323,24 @@ class DebugLogDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("调试日志")
         self.setWindowIcon(QIcon(":/icons/debug.png"))
-        self.setGeometry(400, 400, 800, 600)
+        self.setGeometry(400, 400, 700, 500)  # 缩小对话框尺寸
         
         layout = QVBoxLayout()
         
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
-        self.log_output.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #f0f0f0;")
+        self.log_output.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #f0f0f0;")
         
         # 添加按钮
         btn_layout = QHBoxLayout()
         self.clear_btn = QPushButton("清空日志")
-        self.clear_btn.setStyleSheet("padding: 6px;")
+        self.clear_btn.setStyleSheet("padding: 5px;")
         self.clear_btn.clicked.connect(self.clear_log)
         self.save_btn = QPushButton("保存日志")
-        self.save_btn.setStyleSheet("padding: 6px;")
+        self.save_btn.setStyleSheet("padding: 5px;")
         self.save_btn.clicked.connect(self.save_log)
         self.close_btn = QPushButton("关闭")
-        self.close_btn.setStyleSheet("background-color: #f44336; color: white; padding: 6px;")
+        self.close_btn.setStyleSheet("background-color: #f44336; color: white; padding: 5px;")
         self.close_btn.clicked.connect(self.close)
         
         btn_layout.addWidget(self.clear_btn)
@@ -387,22 +385,22 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("设置")
         self.setWindowIcon(QIcon(":/icons/settings.png"))
-        self.setGeometry(200, 200, 500, 400)
+        self.setGeometry(200, 200, 500, 350)  # 缩小对话框尺寸
         
         self.settings = QSettings("PythonFlashTools", "FlashTool")
         
         layout = QVBoxLayout()
-        layout.setSpacing(15)
+        layout.setSpacing(10)  # 减小间距
         
         # ADB路径设置
         adb_group = QGroupBox("ADB设置")
-        adb_group.setStyleSheet("QGroupBox { font-weight: bold; }")
+        adb_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 10pt; }")
         adb_layout = QVBoxLayout()
         
         self.adb_path_edit = QLineEdit()
         self.adb_path_edit.setPlaceholderText("自动检测或自定义ADB路径")
         adb_browse_btn = QPushButton("浏览...")
-        adb_browse_btn.setStyleSheet("padding: 5px;")
+        adb_browse_btn.setStyleSheet("padding: 4px;")
         adb_browse_btn.clicked.connect(self._browse_adb_path)
         
         adb_path_layout = QHBoxLayout()
@@ -414,13 +412,13 @@ class SettingsDialog(QDialog):
         
         # Fastboot路径设置
         fastboot_group = QGroupBox("Fastboot设置")
-        fastboot_group.setStyleSheet("QGroupBox { font-weight: bold; }")
+        fastboot_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 10pt; }")
         fastboot_layout = QVBoxLayout()
         
         self.fastboot_path_edit = QLineEdit()
         self.fastboot_path_edit.setPlaceholderText("自动检测或自定义Fastboot路径")
         fastboot_browse_btn = QPushButton("浏览...")
-        fastboot_browse_btn.setStyleSheet("padding: 5px;")
+        fastboot_browse_btn.setStyleSheet("padding: 4px;")
         fastboot_browse_btn.clicked.connect(self._browse_fastboot_path)
         
         fastboot_path_layout = QHBoxLayout()
@@ -432,13 +430,13 @@ class SettingsDialog(QDialog):
         
         # MTKClient路径设置
         mtk_group = QGroupBox("MTKClient设置")
-        mtk_group.setStyleSheet("QGroupBox { font-weight: bold; }")
+        mtk_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 10pt; }")
         mtk_layout = QVBoxLayout()
         
         self.mtk_path_edit = QLineEdit()
         self.mtk_path_edit.setPlaceholderText("自动检测或自定义MTKClient路径")
         mtk_browse_btn = QPushButton("浏览...")
-        mtk_browse_btn.setStyleSheet("padding: 5px;")
+        mtk_browse_btn.setStyleSheet("padding: 4px;")
         mtk_browse_btn.clicked.connect(self._browse_mtk_path)
         
         mtk_path_layout = QHBoxLayout()
@@ -450,12 +448,12 @@ class SettingsDialog(QDialog):
         
         # 主题设置
         theme_group = QGroupBox("主题设置")
-        theme_group.setStyleSheet("QGroupBox { font-weight: bold; }")
+        theme_group.setStyleSheet("QGroupBox { font-weight: bold; font-size: 10pt; }")
         theme_layout = QVBoxLayout()
         
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["浅色", "深色", "蓝色"])
-        self.theme_combo.setStyleSheet("padding: 5px;")
+        self.theme_combo.setStyleSheet("padding: 4px; font-size: 10pt;")
         
         theme_layout.addWidget(self.theme_combo)
         theme_group.setLayout(theme_layout)
@@ -463,10 +461,10 @@ class SettingsDialog(QDialog):
         # 按钮
         btn_layout = QHBoxLayout()
         save_btn = QPushButton("保存")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px;")
         save_btn.clicked.connect(self._save_settings)
         cancel_btn = QPushButton("取消")
-        cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
+        cancel_btn.setStyleSheet("background-color: #f44336; color: white; padding: 6px;")
         cancel_btn.clicked.connect(self.reject)
         
         btn_layout.addStretch()
@@ -543,10 +541,23 @@ class ADB:
         self._init_adb()
         self._init_fastboot()
         self._init_mtkclient()
+    
+    def _download_dependency(self, tool_name):
+        """静默下载依赖工具"""
+        try:
+            if tool_name == "ADB":
+                return self._download_adb()
+            elif tool_name == "Fastboot":
+                return self._download_fastboot()
+            elif tool_name == "MTKClient":
+                return self._download_mtkclient()
+        except Exception as e:
+            print(f"静默下载{tool_name}失败: {str(e)}")
+            return None
 
     def _get_platform_specific_name(self, tool):
         """获取平台特定的可执行文件名"""
-        return f"{tool}.exe" if platform.system().lower() == "windows" else tool
+        return f"{tool}.exe"
 
     def _find_tool(self, tool_name, version_cmd, common_paths):
         """通用工具查找方法"""
@@ -584,6 +595,8 @@ class ADB:
                                       capture_output=True, text=True, 
                                       encoding='utf-8', errors='ignore', 
                                       timeout=2)
+                if result.returncode == 0:
+                    return path
             except:
                 continue
                 
@@ -592,36 +605,32 @@ class ADB:
     def _init_adb(self):
         """初始化ADB"""
         common_paths = [
-            "/usr/bin/adb",
-            "/usr/local/bin/adb",
-            os.path.join(os.environ.get("ANDROID_HOME", ""), "platform-tools", "adb"),
-            os.path.join(os.environ.get("ANDROID_SDK_ROOT", ""), "platform-tools", "adb"),
+            os.path.join(os.getcwd(), "tools", "adb", "adb.exe"),
+            os.path.join(os.getenv("ProgramFiles", "C:\\Program Files"), "Android", "android-sdk", "platform-tools", "adb.exe"),
             "C:\\Program Files (x86)\\Android\\android-sdk\\platform-tools\\adb.exe",
-            os.path.expanduser("~/Library/Android/sdk/platform-tools/adb")
+            os.path.join(os.getenv("LOCALAPPDATA", "C:\\Users"), "Android", "Sdk", "platform-tools", "adb.exe")
         ]
         
         self.adb_path = self._find_tool("adb", "version", common_paths)
         
-        # 如果未找到，尝试下载
+        # 如果未找到，尝试静默下载
         if not self.adb_path:
-            self.adb_path = self._download_adb()
+            self.adb_path = self._download_dependency("ADB")
     
     def _init_fastboot(self):
         """初始化Fastboot"""
         common_paths = [
-            "/usr/bin/fastboot",
-            "/usr/local/bin/fastboot",
-            os.path.join(os.environ.get("ANDROID_HOME", ""), "platform-tools", "fastboot"),
-            os.path.join(os.environ.get("ANDROID_SDK_ROOT", ""), "platform-tools", "fastboot"),
+            os.path.join(os.getcwd(), "tools", "fastboot", "fastboot.exe"),
+            os.path.join(os.getenv("ProgramFiles", "C:\\Program Files"), "Android", "android-sdk", "platform-tools", "fastboot.exe"),
             "C:\\Program Files (x86)\\Android\\android-sdk\\platform-tools\\fastboot.exe",
-            os.path.expanduser("~/Library/Android/sdk/platform-tools/fastboot")
+            os.path.join(os.getenv("LOCALAPPDATA", "C:\\Users"), "Android", "Sdk", "platform-tools", "fastboot.exe")
         ]
         
         self.fastboot_path = self._find_tool("fastboot", "--version", common_paths)
         
-        # 如果未找到，尝试下载
+        # 如果未找到，尝试静默下载
         if not self.fastboot_path:
-            self.fastboot_path = self._download_fastboot()
+            self.fastboot_path = self._download_dependency("Fastboot")
     
     def _init_mtkclient(self):
         """初始化MTKClient"""
@@ -633,11 +642,9 @@ class ADB:
         
         # 查找常见路径中的MTKClient
         paths = [
-            "mtk.py",
-            os.path.expanduser("~/mtkclient/mtk.py"),
-            "C:\\mtkclient\\mtk.py",
-            os.path.expanduser("~/mtkclient/mtkclient/mtk.py"),
-            "C:\\mtkclient\\mtkclient\\mtk.py"
+            os.path.join(os.getcwd(), "tools", "mtk", "mtk.py"),
+            os.path.join(os.getcwd(), "mtkclient", "mtk.py"),
+            "C:\\mtkclient\\mtk.py"
         ]
         
         for path in paths:
@@ -645,12 +652,9 @@ class ADB:
                 self.mtk_path = path
                 return
         
-        # 尝试下载
-        self.mtk_path = self._download_mtkclient()
-                
-        # 不自动下载，等待用户操作
-        self.mtk_path = None
-
+        # 尝试静默下载
+        self.mtk_path = self._download_dependency("MTKClient")
+    
     def cleanup(self):
         """清理临时文件"""
         if self.temp_dir and os.path.exists(self.temp_dir):
@@ -661,7 +665,7 @@ class ADB:
     
     def _download_adb(self):
         """下载ADB工具"""
-        system = platform.system().lower()
+        system = "windows"
         mirrors = [
             f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
             f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
@@ -672,7 +676,7 @@ class ADB:
     
     def _download_fastboot(self):
         """下载Fastboot工具"""
-        system = platform.system().lower()
+        system = "windows"
         mirrors = [
             f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
             f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
@@ -701,19 +705,25 @@ class ADB:
             zip_path = os.path.join(tool_dir, f"{tool_name}.zip")
             downloaded = False
             
+            # 静默下载，不显示进度
             for mirror in mirrors:
                 try:
+                    print(f"正在从 {mirror} 下载{tool_name}...")
                     urllib.request.urlretrieve(mirror, zip_path)
                     downloaded = True
+                    print(f"{tool_name}下载完成")
                     break
                 except Exception as e:
+                    print(f"下载失败: {str(e)}")
                     continue
             
             if not downloaded:
+                print(f"所有镜像源下载失败")
                 return None
             
             # 解压文件
             try:
+                print("解压文件...")
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(tool_dir)
             except zipfile.BadZipFile:
@@ -721,6 +731,7 @@ class ADB:
                     with tarfile.open(zip_path, 'r:*') as tar_ref:
                         tar_ref.extractall(tool_dir)
                 except Exception as e:
+                    print(f"解压失败: {str(e)}")
                     return None
             
             # 删除ZIP文件
@@ -741,15 +752,17 @@ class ADB:
                             tool_path = os.path.join(root, file)
                     
                     if tool_path:
-                        # 设置权限(非Windows)
-                        if platform.system().lower() != "windows":
-                            os.chmod(tool_path, 0o755)
                         break
                 if tool_path:
                     break
             
+            if not tool_path:
+                print(f"解压后未找到{tool_name}主文件")
+                return None
+            
             return tool_path
         except Exception as e:
+            print(f"下载{tool_name}失败: {str(e)}")
             return None
 
     def _ensure_adb_server(self):
@@ -1209,14 +1222,12 @@ class FlashTool(QMainWindow):
     mode_signal = pyqtSignal(str, str)
     mtk_device_signal = pyqtSignal(str)
     mtk_command_output = pyqtSignal(str)  # 使用str而不是QTextCursor
-    splash_message = pyqtSignal(str)
 
-    def __init__(self, splash=None):
+    def __init__(self):
         super().__init__()
-        self.splash = splash
         
         self.setWindowTitle("Python Flash Tools V1.5")  # 更新版本号到1.5
-        self.setGeometry(100, 100, 900, 700)
+        self.setGeometry(100, 100, 800, 600)  # 缩小窗口尺寸
         
         # 初始化变量
         self.current_mode = None
@@ -1245,7 +1256,6 @@ class FlashTool(QMainWindow):
         self.mode_signal.connect(self._handle_mode_change)
         self.mtk_device_signal.connect(self._handle_mtk_device)
         self.mtk_command_output.connect(self._update_mtk_log)
-        self.splash_message.connect(self._update_splash_message)
         
         # 初始化UI
         self._init_ui()
@@ -1259,12 +1269,6 @@ class FlashTool(QMainWindow):
         # 检查工具依赖
         self._check_tools(silent=True)
     
-    def _update_splash_message(self, message):
-        """更新启动画面消息"""
-        if self.splash:
-            self.splash.showMessage(message, Qt.AlignBottom | Qt.AlignCenter, Qt.white)
-            QApplication.processEvents()
-    
     def _check_tools(self, silent=False):
         """静默检查工具依赖"""
         missing_tools = []
@@ -1275,144 +1279,33 @@ class FlashTool(QMainWindow):
         if not self.adb.mtk_path:
             missing_tools.append("MTKClient")
         
-        if missing_tools:
-            self.splash_message.emit(f"正在下载缺失的工具: {', '.join(missing_tools)}")
-            self._silent_download_tools(missing_tools)
-    
-    def _silent_download_tools(self, tools):
-        """静默下载工具"""
-        tool_paths = {}
-        
-        for tool in tools:
-            self.splash_message.emit(f"下载 {tool} 工具...")
-            if tool == "ADB":
-                tool_path = self._download_adb()
-                if tool_path:
-                    tool_paths["adb"] = tool_path
-            elif tool == "Fastboot":
-                tool_path = self._download_fastboot()
-                if tool_path:
-                    tool_paths["fastboot"] = tool_path
-            elif tool == "MTKClient":
-                tool_path = self._download_mtkclient()
-                if tool_path:
-                    tool_paths["mtk"] = tool_path
-        
-        # 重新初始化ADB类以加载下载的工具
-        self.adb = ADB()
-        self.splash_message.emit("工具下载完成")
-    
-    def _download_adb(self):
-        """下载ADB工具"""
-        system = platform.system().lower()
-        mirrors = [
-            f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.tuna.tsinghua.edu.cn/github-release/android/platform-tools/LatestRelease/platform-tools-latest-{system}.zip"
-        ]
-        
-        return self._download_tool("adb", mirrors)
-    
-    def _download_fastboot(self):
-        """下载Fastboot工具"""
-        system = platform.system().lower()
-        mirrors = [
-            f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.tuna.tsinghua.edu.cn/github-release/android/platform-tools/LatestRelease/platform-tools-latest-{system}.zip"
-        ]
-        
-        return self._download_tool("fastboot", mirrors)
-    
-    def _download_mtkclient(self):
-        """下载MTKClient工具"""
-        mirrors = [
-            "https://github.com/bkerler/mtkclient/archive/refs/heads/main.zip",
-            "https://ghproxy.com/https://github.com/bkerler/mtkclient/archive/refs/heads/main.zip"
-        ]
-        
-        return self._download_tool("mtk", mirrors)
-    
-    def _download_tool(self, tool_name, mirrors):
-        """通用工具下载方法"""
-        try:
-            # 创建永久工具目录
-            app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-            tool_dir = os.path.join(app_dir, "tools", tool_name)
-            os.makedirs(tool_dir, exist_ok=True)
-            
-            zip_path = os.path.join(tool_dir, f"{tool_name}.zip")
-            downloaded = False
-            
-            for mirror in mirrors:
-                try:
-                    urllib.request.urlretrieve(mirror, zip_path)
-                    downloaded = True
-                    break
-                except Exception as e:
-                    continue
-            
-            if not downloaded:
-                return None
-            
-            # 解压文件
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(tool_dir)
-            except zipfile.BadZipFile:
-                try:
-                    with tarfile.open(zip_path, 'r:*') as tar_ref:
-                        tar_ref.extractall(tool_dir)
-                except Exception as e:
-                    return None
-            
-            # 删除ZIP文件
-            try:
-                os.remove(zip_path)
-            except:
-                pass
-            
-            # 查找工具
-            tool_path = None
-            for root, dirs, files in os.walk(tool_dir):
-                for file in files:
-                    if tool_name == "mtk":
-                        if file.lower() == "mtk.py":
-                            tool_path = os.path.join(root, file)
-                    else:
-                        if file.lower().startswith(tool_name) and not file.endswith('.zip'):
-                            tool_path = os.path.join(root, file)
-                    
-                    if tool_path:
-                        # 设置权限(非Windows)
-                        if platform.system().lower() != "windows":
-                            os.chmod(tool_path, 0o755)
-                        break
-                if tool_path:
-                    break
-            
-            return tool_path
-        except Exception as e:
-            return None
+        if missing_tools and not silent:
+            # 显示下载对话框
+            dlg = DownloadDialog(missing_tools, self)
+            if dlg.exec_() == QDialog.Accepted and dlg.download_success:
+                # 重新初始化ADB以应用下载的工具
+                self.adb = ADB()
+                self.log_signal.emit("工具下载完成并已应用")
     
     def _init_ui(self):
         """初始化用户界面 - 优化布局"""
         main_widget = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 创建标签页
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("""
             QTabBar::tab {
-                padding: 8px 15px;
-                min-width: 80px;
+                padding: 6px 12px;  /* 减小标签页内边距 */
+                min-width: 70px;    /* 减小标签页最小宽度 */
                 background: #f0f0f0;
                 border: 1px solid #cccccc;
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
+                font-size: 10pt;    /* 减小标签页字体大小 */
             }
             QTabBar::tab:selected {
                 background: #ffffff;
@@ -1420,7 +1313,7 @@ class FlashTool(QMainWindow):
             }
             QTabWidget::pane {
                 border: 1px solid #cccccc;
-                padding: 10px;
+                padding: 8px;       /* 减小标签页内容内边距 */
                 background: #ffffff;
             }
         """)
@@ -1467,22 +1360,22 @@ class FlashTool(QMainWindow):
         
         # 底部状态栏
         self.status_bar = QLabel("就绪")
-        self.status_bar.setStyleSheet("font-size: 10pt; padding: 5px; background-color: #f0f0f0; border-top: 1px solid #cccccc;")
-        self.status_bar.setFixedHeight(30)
+        self.status_bar.setStyleSheet("font-size: 9pt; padding: 4px; background-color: #f0f0f0; border-top: 1px solid #cccccc;")
+        self.status_bar.setFixedHeight(26)  # 减小高度
         
         # 工具按钮
         tool_btn_layout = QHBoxLayout()
         self.settings_btn = QPushButton("设置")
         self.settings_btn.setIcon(QIcon(":/icons/settings.png"))
-        self.settings_btn.setStyleSheet("padding: 6px;")
+        self.settings_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         self.settings_btn.clicked.connect(self._show_settings)
         self.debug_btn = QPushButton("调试日志")
         self.debug_btn.setIcon(QIcon(":/icons/debug.png"))
-        self.debug_btn.setStyleSheet("padding: 6px;")
+        self.debug_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         self.debug_btn.clicked.connect(self._show_debug_log)
         self.about_btn = QPushButton("关于")
         self.about_btn.setIcon(QIcon(":/icons/about.png"))
-        self.about_btn.setStyleSheet("padding: 6px;")
+        self.about_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         self.about_btn.clicked.connect(self._show_about)
         
         tool_btn_layout.addWidget(self.settings_btn)
@@ -1505,19 +1398,19 @@ class FlashTool(QMainWindow):
     def _init_device_tab(self, tab):
         """初始化设备标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 设备状态
         status_group = QGroupBox("设备状态")
         status_layout = QVBoxLayout()
         
         self.device_status = QLabel("等待设备连接...")
-        self.device_status.setStyleSheet("font-size: 14pt; font-weight: bold; color: #666666;")
+        self.device_status.setStyleSheet("font-size: 12pt; font-weight: bold; color: #666666;")  # 减小字体大小
         
         # 设备信息
         self.device_info = QLabel()
-        self.device_info.setStyleSheet("font-size: 12pt;")
+        self.device_info.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         
         status_layout.addWidget(self.device_status)
         status_layout.addWidget(self.device_info)
@@ -1528,7 +1421,7 @@ class FlashTool(QMainWindow):
         details_layout = QVBoxLayout()
         
         self.device_details = QLabel("设备详细信息将在此显示")
-        self.device_details.setStyleSheet("font-size: 10pt;")
+        self.device_details.setStyleSheet("font-size: 9pt;")  # 减小字体大小
         self.device_details.setWordWrap(True)
         
         details_layout.addWidget(self.device_details)
@@ -1540,22 +1433,22 @@ class FlashTool(QMainWindow):
         
         self.bootloader_btn = QPushButton("进入Bootloader")
         self.bootloader_btn.setIcon(QIcon(":/icons/bootloader.png"))
-        self.bootloader_btn.setStyleSheet("padding: 8px;")
+        self.bootloader_btn.setStyleSheet("padding: 6px;")  # 减小内边距
         self.bootloader_btn.clicked.connect(self._enter_bootloader)
         
         self.recovery_btn = QPushButton("进入Recovery")
         self.recovery_btn.setIcon(QIcon(":/icons/recovery.png"))
-        self.recovery_btn.setStyleSheet("padding: 8px;")
+        self.recovery_btn.setStyleSheet("padding: 6px;")  # 减小内边距
         self.recovery_btn.clicked.connect(self._enter_recovery)
         
         self.reboot_btn = QPushButton("重启设备")
         self.reboot_btn.setIcon(QIcon(":/icons/reboot.png"))
-        self.reboot_btn.setStyleSheet("padding: 8px;")
+        self.reboot_btn.setStyleSheet("padding: 6px;")  # 减小内边距
         self.reboot_btn.clicked.connect(self._reboot_device)
         
         self.detect_mtk_btn = QPushButton("检测MTK设备")
         self.detect_mtk_btn.setIcon(QIcon(":/icons/detect.png"))
-        self.detect_mtk_btn.setStyleSheet("padding: 8px;")
+        self.detect_mtk_btn.setStyleSheet("padding: 6px;")  # 减小内边距
         self.detect_mtk_btn.clicked.connect(self._detect_mtk_devices)
         
         btn_layout.addWidget(self.bootloader_btn, 0, 0)
@@ -1589,8 +1482,8 @@ class FlashTool(QMainWindow):
     def _init_flash_tab(self, tab):
         """初始化刷机标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 固件选择
         file_group = QGroupBox("固件选择")
@@ -1598,10 +1491,10 @@ class FlashTool(QMainWindow):
         
         file_select_layout = QHBoxLayout()
         self.file_label = QLabel("未选择固件")
-        self.file_label.setStyleSheet("font-size: 11pt;")
+        self.file_label.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         select_btn = QPushButton("选择固件")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px;")
+        select_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         select_btn.clicked.connect(self._select_firmware)
         
         file_select_layout.addWidget(self.file_label)
@@ -1615,7 +1508,7 @@ class FlashTool(QMainWindow):
         partition_layout = QVBoxLayout()
         
         self.partition_combo = QComboBox()
-        self.partition_combo.setStyleSheet("padding: 6px; font-size: 11pt;")
+        self.partition_combo.setStyleSheet("padding: 5px; font-size: 10pt;")  # 减小字体大小
         self.partition_combo.addItems(["全部", "boot", "recovery", "system", "vendor", "userdata", "cache", "vbmeta"])
         
         partition_layout.addWidget(self.partition_combo)
@@ -1623,21 +1516,21 @@ class FlashTool(QMainWindow):
         
         # 进度条
         self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 11pt; }")
+        self.progress_bar.setStyleSheet("QProgressBar { height: 22px; font-size: 10pt; }")  # 减小高度和字体
         
         # 刷机按钮
         self.flash_btn = QPushButton("开始刷机")
         self.flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.flash_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
+        self.flash_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px; font-size: 11pt;")  # 减小内边距和字体
         self.flash_btn.clicked.connect(self._start_flashing)
         
         # 添加支持格式说明
         format_label = QLabel("支持格式: zip, img, bin, tgz, tar.gz")
-        format_label.setStyleSheet("color: #888888; font-size: 9pt;")
+        format_label.setStyleSheet("color: #888888; font-size: 8pt;")  # 减小字体大小
         
         # 添加USB连接提示
         usb_label = QLabel("提示: 确保使用高质量USB数据线并连接到USB 2.0端口")
-        usb_label.setStyleSheet("color: #ff6600; font-size: 9pt;")
+        usb_label.setStyleSheet("color: #ff6600; font-size: 8pt;")  # 减小字体大小
         
         # 组装布局
         layout.addWidget(file_group)
@@ -1653,8 +1546,8 @@ class FlashTool(QMainWindow):
     def _init_backup_tab(self, tab):
         """初始化备份标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 备份路径选择
         path_group = QGroupBox("备份路径")
@@ -1662,10 +1555,10 @@ class FlashTool(QMainWindow):
         
         path_select_layout = QHBoxLayout()
         self.backup_path_label = QLabel("未选择备份路径")
-        self.backup_path_label.setStyleSheet("font-size: 11pt;")
+        self.backup_path_label.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         select_btn = QPushButton("选择路径")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px;")
+        select_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         select_btn.clicked.connect(self._select_backup_path)
         
         path_select_layout.addWidget(self.backup_path_label)
@@ -1679,7 +1572,7 @@ class FlashTool(QMainWindow):
         partition_layout = QVBoxLayout()
         
         self.backup_partition_combo = QComboBox()
-        self.backup_partition_combo.setStyleSheet("padding: 6px; font-size: 11pt;")
+        self.backup_partition_combo.setStyleSheet("padding: 5px; font-size: 10pt;")  # 减小字体大小
         self.backup_partition_combo.addItems(["boot", "recovery", "system", "vendor", "userdata", "cache"])
         
         partition_layout.addWidget(self.backup_partition_combo)
@@ -1688,16 +1581,16 @@ class FlashTool(QMainWindow):
         # 备份按钮
         self.backup_btn = QPushButton("开始备份")
         self.backup_btn.setIcon(QIcon(":/icons/backup.png"))
-        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
+        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 8px; font-size: 11pt;")  # 减小内边距和字体
         self.backup_btn.clicked.connect(self._start_backup)
         
         # 添加提示信息
         info_label = QLabel("注意: 此备份功能使用Fastboot模式，需要设备处于Fastboot模式")
-        info_label.setStyleSheet("color: #888888; font-size: 9pt;")
+        info_label.setStyleSheet("color: #888888; font-size: 8pt;")  # 减小字体大小
         
         # 添加空间提示
         space_label = QLabel("确保目标驱动器有足够空间（系统分区通常需要2GB以上空间）")
-        space_label.setStyleSheet("color: #ff6600; font-size: 9pt;")
+        space_label.setStyleSheet("color: #ff6600; font-size: 8pt;")  # 减小字体大小
         
         # 组装布局
         layout.addWidget(path_group)
@@ -1712,8 +1605,8 @@ class FlashTool(QMainWindow):
     def _init_adb_tab(self, tab):
         """初始化ADB命令标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 命令输入
         input_group = QGroupBox("ADB命令")
@@ -1721,12 +1614,12 @@ class FlashTool(QMainWindow):
         
         self.adb_command_input = QLineEdit()
         self.adb_command_input.setPlaceholderText("输入ADB命令，例如: shell ls /sdcard")
-        self.adb_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
+        self.adb_command_input.setStyleSheet("padding: 6px; font-size: 10pt;")  # 减小字体大小
         
         # 执行按钮
         execute_btn = QPushButton("执行ADB命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 6px;")  # 减小内边距
         execute_btn.clicked.connect(self._execute_adb_command)
         
         input_layout.addWidget(self.adb_command_input)
@@ -1739,7 +1632,7 @@ class FlashTool(QMainWindow):
         
         self.adb_output = QPlainTextEdit()
         self.adb_output.setReadOnly(True)
-        self.adb_output.setStyleSheet("font-family: monospace; font-size: 10pt;")
+        self.adb_output.setStyleSheet("font-family: monospace; font-size: 9pt;")  # 减小字体大小
         
         output_layout.addWidget(self.adb_output)
         output_group.setLayout(output_layout)
@@ -1761,7 +1654,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left;")
+            btn.setStyleSheet("padding: 4px; text-align: left; font-size: 9pt;")  # 减小内边距和字体
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_adb_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1782,8 +1675,8 @@ class FlashTool(QMainWindow):
     def _init_fastboot_tab(self, tab):
         """初始化Fastboot命令标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 命令输入
         input_group = QGroupBox("Fastboot命令")
@@ -1791,12 +1684,12 @@ class FlashTool(QMainWindow):
         
         self.fastboot_command_input = QLineEdit()
         self.fastboot_command_input.setPlaceholderText("输入Fastboot命令，例如: devices")
-        self.fastboot_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
+        self.fastboot_command_input.setStyleSheet("padding: 6px; font-size: 10pt;")  # 减小字体大小
         
         # 执行按钮
         execute_btn = QPushButton("执行Fastboot命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 6px;")  # 减小内边距
         execute_btn.clicked.connect(self._execute_fastboot_command)
         
         input_layout.addWidget(self.fastboot_command_input)
@@ -1809,7 +1702,7 @@ class FlashTool(QMainWindow):
         
         self.fastboot_output = QPlainTextEdit()
         self.fastboot_output.setReadOnly(True)
-        self.fastboot_output.setStyleSheet("font-family: monospace; font-size: 10pt;")
+        self.fastboot_output.setStyleSheet("font-family: monospace; font-size: 9pt;")  # 减小字体大小
         
         output_layout.addWidget(self.fastboot_output)
         output_group.setLayout(output_layout)
@@ -1831,7 +1724,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left;")
+            btn.setStyleSheet("padding: 4px; text-align: left; font-size: 9pt;")  # 减小内边距和字体
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_fastboot_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1852,18 +1745,18 @@ class FlashTool(QMainWindow):
     def _init_unlock_tab(self, tab):
         """初始化BL解锁标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 警告信息
         warning_group = QGroupBox("重要警告")
         warning_layout = QVBoxLayout()
         
         warning_label = QLabel(
-            "警告: 解锁Bootloader会清除设备上的所有数据!\n\n"
+            "警告: 解锁Bootloader会清除设备上的所有数据!\n\n" +
             "请在操作前备份重要数据。某些设备可能需要先申请解锁许可。"
         )
-        warning_label.setStyleSheet("color: red; font-weight: bold; font-size: 11pt;")
+        warning_label.setStyleSheet("color: red; font-weight: bold; font-size: 10pt;")  # 减小字体大小
         warning_label.setWordWrap(True)
         
         warning_layout.addWidget(warning_label)
@@ -1872,13 +1765,13 @@ class FlashTool(QMainWindow):
         # 解锁按钮
         unlock_btn = QPushButton("解锁Bootloader")
         unlock_btn.setIcon(QIcon(":/icons/unlock.png"))
-        unlock_btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
+        unlock_btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold; padding: 8px; font-size: 11pt;")  # 减小内边距和字体
         unlock_btn.clicked.connect(self._unlock_bootloader)
         
         # 锁定按钮
         lock_btn = QPushButton("锁定Bootloader")
         lock_btn.setIcon(QIcon(":/icons/lock.png"))
-        lock_btn.setStyleSheet("background-color: #4444ff; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
+        lock_btn.setStyleSheet("background-color: #4444ff; color: white; font-weight: bold; padding: 8px; font-size: 11pt;")  # 减小内边距和字体
         lock_btn.clicked.connect(self._lock_bootloader)
         
         # 状态显示
@@ -1886,7 +1779,7 @@ class FlashTool(QMainWindow):
         status_layout = QVBoxLayout()
         
         self.unlock_status = QLabel("设备状态: 未知")
-        self.unlock_status.setStyleSheet("font-size: 11pt;")
+        self.unlock_status.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         
         status_layout.addWidget(self.unlock_status)
         status_group.setLayout(status_layout)
@@ -1896,14 +1789,14 @@ class FlashTool(QMainWindow):
         instructions_layout = QVBoxLayout()
         
         instructions = QLabel(
-            "解锁步骤:\n"
-            "1. 确保设备已进入Fastboot模式\n"
-            "2. 连接设备到电脑\n"
-            "3. 点击解锁按钮\n"
+            "解锁步骤:\n" +
+            "1. 确保设备已进入Fastboot模式\n" +
+            "2. 连接设备到电脑\n" +
+            "3. 点击解锁按钮\n" +
             "4. 按照设备屏幕上的提示操作"
         )
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("font-size: 10pt;")
+        instructions.setStyleSheet("font-size: 9pt;")  # 减小字体大小
         
         instructions_layout.addWidget(instructions)
         instructions_group.setLayout(instructions_layout)
@@ -1921,8 +1814,8 @@ class FlashTool(QMainWindow):
     def _init_xiaomi_tab(self, tab):
         """初始化小米线刷标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 固件选择
         file_group = QGroupBox("小米线刷包")
@@ -1930,10 +1823,10 @@ class FlashTool(QMainWindow):
         
         file_select_layout = QHBoxLayout()
         self.xiaomi_file_label = QLabel("未选择小米线刷包")
-        self.xiaomi_file_label.setStyleSheet("font-size: 11pt;")
+        self.xiaomi_file_label.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         select_btn = QPushButton("选择线刷包")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px;")
+        select_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         select_btn.clicked.connect(self._select_xiaomi_firmware)
         
         file_select_layout.addWidget(self.xiaomi_file_label)
@@ -1948,9 +1841,9 @@ class FlashTool(QMainWindow):
         
         self.clean_all_check = QCheckBox("清除所有数据")
         self.clean_all_check.setChecked(True)
-        self.clean_all_check.setStyleSheet("font-size: 11pt;")
+        self.clean_all_check.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         self.lock_bootloader_check = QCheckBox("锁定Bootloader")
-        self.lock_bootloader_check.setStyleSheet("font-size: 11pt;")
+        self.lock_bootloader_check.setStyleSheet("font-size: 10pt;")  # 减小字体大小
         
         options_layout.addWidget(self.clean_all_check)
         options_layout.addWidget(self.lock_bootloader_check)
@@ -1958,12 +1851,12 @@ class FlashTool(QMainWindow):
         
         # 进度条
         self.xiaomi_progress_bar = QProgressBar()
-        self.xiaomi_progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 11pt; }")
+        self.xiaomi_progress_bar.setStyleSheet("QProgressBar { height: 22px; font-size: 10pt; }")  # 减小高度和字体
         
         # 刷机按钮
         self.xiaomi_flash_btn = QPushButton("开始小米线刷")
         self.xiaomi_flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.xiaomi_flash_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
+        self.xiaomi_flash_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 8px; font-size: 11pt;")  # 减小内边距和字体
         self.xiaomi_flash_btn.clicked.connect(self._start_xiaomi_flashing)
         
         # 组装布局
@@ -1978,25 +1871,15 @@ class FlashTool(QMainWindow):
     def _init_mtk_tab(self, tab):
         """初始化MTK命令行标签页 - 优化布局"""
         layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)  # 减小间距
+        layout.setContentsMargins(8, 8, 8, 8)  # 减小边距
         
         # 说明
         info_group = QGroupBox("使用说明")
         info_layout = QVBoxLayout()
         
-        info_label = QLabel(
-            "MTK命令行模式允许直接执行MTKClient命令\n\n"
-            "常用命令示例:\n"
-            "  - detect: 检测设备\n"
-            "  - printgpt: 显示分区表\n"
-            "  - rf boot boot.img: 读取boot分区\n"
-            "  - wf boot boot.img: 写入boot分区\n"
-            "  - flash: 刷入整个固件包\n"
-            "  - da seccfg unlock: 解锁设备\n\n"
-            "注意：不同设备命令可能有所不同，请查阅MTKClient文档。"
-        )
-        info_label.setStyleSheet("font-size: 10pt;")
+        info_label = QLabel("MTK命令行模式允许直接执行MTKClient命令" )
+        info_label.setStyleSheet("font-size: 9pt;")  # 减小字体大小
         info_label.setWordWrap(True)
         
         info_layout.addWidget(info_label)
@@ -2009,17 +1892,17 @@ class FlashTool(QMainWindow):
         command_input_layout = QHBoxLayout()
         self.mtk_command_input = QLineEdit()
         self.mtk_command_input.setPlaceholderText("输入MTKClient命令，例如: printgpt")
-        self.mtk_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
+        self.mtk_command_input.setStyleSheet("padding: 6px; font-size: 10pt;")  # 减小字体大小
         self.mtk_command_input.returnPressed.connect(self._execute_mtk_command)
         
         execute_btn = QPushButton("执行")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 6px;")  # 减小内边距
         execute_btn.clicked.connect(self._execute_mtk_command)
         
         stop_btn = QPushButton("停止")
         stop_btn.setIcon(QIcon(":/icons/stop.png"))
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
+        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 6px;")  # 减小内边距
         stop_btn.clicked.connect(self._stop_mtk_command)
         
         command_input_layout.addWidget(self.mtk_command_input)
@@ -2048,7 +1931,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left;")
+            btn.setStyleSheet("padding: 4px; text-align: left; font-size: 9pt;")  # 减小内边距和字体
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_mtk_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -2066,10 +1949,11 @@ class FlashTool(QMainWindow):
         detect_btn_layout = QHBoxLayout()
         self.start_detect_btn = QPushButton("持续检测设备")
         self.start_detect_btn.setIcon(QIcon(":/icons/scan.png"))
-        self.start_detect_btn.setStyleSheet("padding: 6px;")
+        self.start_detect_btn.setStyleSheet("padding: 5px;")  # 减小内边距
+        self.start_detect_btn.clicked.connect(self._start_detect_mtk)
         self.stop_detect_btn = QPushButton("停止检测")
         self.stop_detect_btn.setIcon(QIcon(":/icons/stop.png"))
-        self.stop_detect_btn.setStyleSheet("padding: 6px;")
+        self.stop_detect_btn.setStyleSheet("padding: 5px;")  # 减小内边距
         self.stop_detect_btn.setEnabled(False)
         
         self.start_detect_btn.clicked.connect(self._start_detect_mtk)
@@ -2080,7 +1964,7 @@ class FlashTool(QMainWindow):
         
         # 设备连接状态
         self.mtk_status_label = QLabel("设备状态: 未连接")
-        self.mtk_status_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
+        self.mtk_status_label.setStyleSheet("font-size: 10pt; font-weight: bold;")  # 减小字体大小
         
         detect_layout.addLayout(detect_btn_layout)
         detect_layout.addWidget(self.mtk_status_label)
@@ -2092,7 +1976,7 @@ class FlashTool(QMainWindow):
         
         self.mtk_output = QTextEdit()
         self.mtk_output.setReadOnly(True)
-        self.mtk_output.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #f0f0f0;")
+        self.mtk_output.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #f0f0f0;")  # 减小字体大小
         
         output_layout.addWidget(self.mtk_output)
         output_group.setLayout(output_layout)
@@ -2137,7 +2021,7 @@ class FlashTool(QMainWindow):
                     border-radius: 4px;
                     margin-top: 10px;
                     padding-top: 15px;
-                    color: #e0e0e0;
+                    background-color: #ffffff;
                 }
                 QGroupBox::title {
                     subcontrol-origin: margin;
@@ -2160,9 +2044,10 @@ class FlashTool(QMainWindow):
                 QTabBar::tab {
                     background: #444444;
                     color: #e0e0e0;
-                    padding: 8px;
+                    padding: 6px 12px; /* 减小标签页内边距 */
                     border-top-left-radius: 4px;
                     border-top-right-radius: 4px;
+                    font-size: 10pt;   /* 减小标签页字体大小 */
                 }
                 QTabBar::tab:selected {
                     background: #555555;
@@ -2174,12 +2059,14 @@ class FlashTool(QMainWindow):
                     border: 1px solid #555555;
                     padding: 3px;
                     border-radius: 3px;
+                    font-size: 10pt;   /* 减小字体大小 */
                 }
                 QProgressBar {
                     border: 1px solid #444444;
                     border-radius: 3px;
                     text-align: center;
                     background-color: #444444;
+                    height: 22px;      /* 减小高度 */
                 }
                 QProgressBar::chunk {
                     background-color: #4CAF50;
@@ -2187,6 +2074,7 @@ class FlashTool(QMainWindow):
                 }
                 QLabel {
                     color: #e0e0e0;
+                    font-size: 10pt;   /* 减小字体大小 */
                 }
             """)
         elif theme == "蓝色":
@@ -2238,9 +2126,10 @@ class FlashTool(QMainWindow):
                 QTabBar::tab {
                     background: #e0e0e0;
                     color: #555555;
-                    padding: 8px;
+                    padding: 6px 12px; /* 减小标签页内边距 */
                     border-top-left-radius: 4px;
                     border-top-right-radius: 4px;
+                    font-size: 10pt;   /* 减小标签页字体大小 */
                 }
                 QTabBar::tab:selected {
                     background: #ffffff;
@@ -2251,12 +2140,14 @@ class FlashTool(QMainWindow):
                     border: 1px solid #a0c8ff;
                     padding: 3px;
                     border-radius: 3px;
+                    font-size: 10pt;   /* 减小字体大小 */
                 }
                 QProgressBar {
                     border: 1px solid #a0c8ff;
                     border-radius: 3px;
                     text-align: center;
                     background-color: white;
+                    height: 22px;      /* 减小高度 */
                 }
                 QProgressBar::chunk {
                     background-color: #4169e1;
@@ -2264,6 +2155,7 @@ class FlashTool(QMainWindow):
                 }
                 QLabel {
                     color: #333333;
+                    font-size: 10pt;   /* 减小字体大小 */
                 }
             """)
         else:  # 浅色主题
@@ -2299,9 +2191,10 @@ class FlashTool(QMainWindow):
                 QTabBar::tab {
                     background: #e0e0e0;
                     color: #555555;
-                    padding: 8px;
+                    padding: 6px 12px; /* 减小标签页内边距 */
                     border-top-left-radius: 4px;
                     border-top-right-radius: 4px;
+                    font-size: 10pt;   /* 减小标签页字体大小 */
                 }
                 QTabBar::tab:selected {
                     background: #ffffff;
@@ -2312,12 +2205,14 @@ class FlashTool(QMainWindow):
                     border: 1px solid #cccccc;
                     padding: 3px;
                     border-radius: 3px;
+                    font-size: 10pt;   /* 减小字体大小 */
                 }
                 QProgressBar {
                     border: 1px solid #cccccc;
                     border-radius: 3px;
                     text-align: center;
                     background-color: white;
+                    height: 22px;      /* 减小高度 */
                 }
                 QProgressBar::chunk {
                     background-color: #2196F3;
@@ -2359,15 +2254,16 @@ class FlashTool(QMainWindow):
                         mtk_devices = self.adb.detect_mtk_devices()
                         if mtk_devices:
                             self.mtk_device_signal.emit(mtk_devices[0][0])
-                            self.mtk_status_label.setText(f"设备状态: 已连接 (端口: {mtk_devices[0][0]})")
                             self.mtk_detecting = False  # 检测到设备后停止检测
                             self.stop_detect_btn.setEnabled(False)
                             self.start_detect_btn.setEnabled(True)
+                            self.mtk_status_label.setText(f"设备状态: 已连接 (端口: {mtk_devices[0][0]})")
                             time.sleep(3)
                             continue
                     except Exception as e:
-                        self.log_signal.emit(f"MTK设备检测错误: {str(e)}")
+                        self.mtk_command_output.emit(f"检测错误: {str(e)}")
                         self.mtk_status_label.setText(f"设备状态: 检测错误 - {str(e)}")
+                        time.sleep(1)
                 
                 # 没有检测到设备
                 self.mode_signal.emit(None, None)
@@ -3269,37 +3165,16 @@ def install_python_dependencies():
 if __name__ == "__main__":
     # 检测并安装Python依赖
     install_python_dependencies()
-
-    import multiprocessing
-    multiprocessing.freeze_support()
     
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     
     # 设置全局字体为微软雅黑
-    font = QFont("Microsoft YaHei", 10)
+    font = QFont("Microsoft YaHei", 9)  # 减小全局字体大小
     app.setFont(font)
     
-    # 创建启动画面
-    splash_pix = QPixmap(800, 400)
-    splash_pix.fill(QColor(45, 45, 45))
-    splash = QSplashScreen(splash_pix)
-    splash.setFont(font)
-    splash.showMessage("正在初始化...", Qt.AlignBottom | Qt.AlignCenter, Qt.white)
-    splash.show()
-    app.processEvents()
-    
     # 初始化主窗口
-    tool = FlashTool(splash)
-    
-    # 关闭启动画面
+    tool = FlashTool()
     tool.show()
-    splash.finish(tool)
     
     sys.exit(app.exec_())
-
-def resource_path(relative_path):
-    """获取打包后资源的绝对路径"""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)

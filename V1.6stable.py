@@ -1227,7 +1227,7 @@ class FlashTool(QMainWindow):
         super().__init__()
         self.splash = splash
         
-        self.setWindowTitle("Python Flash Tools V1.6 Beta")  # 更新版本号到1.6
+        self.setWindowTitle("Python Flash Tools V1.6")  # 更新版本号到1.6
         self.setGeometry(100, 100, 700, 500)
         
         # 初始化变量
@@ -2664,7 +2664,7 @@ class FlashTool(QMainWindow):
     def _show_about(self):
         """显示关于信息"""
         about_text = (
-            "<h2>Python Flash Tools V1.6 Beta</h2>"
+            "<h2>Python Flash Tools V1.6</h2>"
             "<p>Powered by LanChe-Studio</p>"
             "<p>开源项目: <a href='https://github.com/LanChe-Studio/python-flash-tools'>https://github.com/LanChe-Studio/python-flash-tools</a></p>"
             "<p>开源协议: GPL 3.0</p>"
