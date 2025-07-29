@@ -169,9 +169,6 @@ class DownloadDialog(QDialog):
                 if tool_path:
                     self.tool_paths["adb"] = tool_path
                     self.log(f"ADB下载成功: {tool_path}")
-                    # 保存设置
-                    settings = QSettings("PythonFlashTools", "FlashTool")
-                    settings.setValue("adb_path", tool_path)
                     downloaded_count += 1
                 else:
                     self.log("ADB下载失败")
@@ -181,9 +178,6 @@ class DownloadDialog(QDialog):
                 if tool_path:
                     self.tool_paths["fastboot"] = tool_path
                     self.log(f"Fastboot下载成功: {tool_path}")
-                    # 保存设置
-                    settings = QSettings("PythonFlashTools", "FlashTool")
-                    settings.setValue("fastboot_path", tool_path)
                     downloaded_count += 1
                 else:
                     self.log("Fastboot下载失败")
@@ -193,9 +187,6 @@ class DownloadDialog(QDialog):
                 if tool_path:
                     self.tool_paths["mtk"] = tool_path
                     self.log(f"MTKClient下载成功: {tool_path}")
-                    # 保存设置
-                    settings = QSettings("PythonFlashTools", "FlashTool")
-                    settings.setValue("mtk_path", tool_path)
                     downloaded_count += 1
                 else:
                     self.log("MTKClient下载失败")
@@ -463,7 +454,7 @@ class SettingsDialog(QDialog):
         theme_layout = QVBoxLayout()
         
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["春 (绿白)", "夏 (蓝白)", "秋 (橙白)", "冬 (纯白)"])
+        self.theme_combo.addItems(["浅色", "深色", "蓝色"])
         self.theme_combo.setStyleSheet("padding: 5px;")
         
         theme_layout.addWidget(self.theme_combo)
@@ -527,10 +518,7 @@ class SettingsDialog(QDialog):
         self.adb_path_edit.setText(self.settings.value("adb_path", ""))
         self.fastboot_path_edit.setText(self.settings.value("fastboot_path", ""))
         self.mtk_path_edit.setText(self.settings.value("mtk_path", ""))
-        theme = self.settings.value("theme", "夏 (蓝白)")
-        index = self.theme_combo.findText(theme)
-        if index >= 0:
-            self.theme_combo.setCurrentIndex(index)
+        self.theme_combo.setCurrentText(self.settings.value("theme", "蓝色"))
     
     def _save_settings(self):
         """保存设置"""
@@ -1409,10 +1397,6 @@ class FlashTool(QMainWindow):
     
     def _init_ui(self):
         """初始化用户界面 - 优化布局"""
-        # 设置全局字体
-        font = QFont("Microsoft YaHei", 9)
-        QApplication.setFont(font)
-        
         main_widget = QWidget()
         layout = QVBoxLayout()
         layout.setSpacing(10)
@@ -1429,7 +1413,6 @@ class FlashTool(QMainWindow):
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
-                font-size: 10pt;
             }
             QTabBar::tab:selected {
                 background: #ffffff;
@@ -1484,22 +1467,22 @@ class FlashTool(QMainWindow):
         
         # 底部状态栏
         self.status_bar = QLabel("就绪")
-        self.status_bar.setStyleSheet("font-size: 9pt; padding: 5px; background-color: #f0f0f0; border-top: 1px solid #cccccc;")
+        self.status_bar.setStyleSheet("font-size: 10pt; padding: 5px; background-color: #f0f0f0; border-top: 1px solid #cccccc;")
         self.status_bar.setFixedHeight(30)
         
         # 工具按钮
         tool_btn_layout = QHBoxLayout()
         self.settings_btn = QPushButton("设置")
         self.settings_btn.setIcon(QIcon(":/icons/settings.png"))
-        self.settings_btn.setStyleSheet("padding: 6px; min-width: 80px;")
+        self.settings_btn.setStyleSheet("padding: 6px;")
         self.settings_btn.clicked.connect(self._show_settings)
         self.debug_btn = QPushButton("调试日志")
         self.debug_btn.setIcon(QIcon(":/icons/debug.png"))
-        self.debug_btn.setStyleSheet("padding: 6px; min-width: 80px;")
+        self.debug_btn.setStyleSheet("padding: 6px;")
         self.debug_btn.clicked.connect(self._show_debug_log)
         self.about_btn = QPushButton("关于")
         self.about_btn.setIcon(QIcon(":/icons/about.png"))
-        self.about_btn.setStyleSheet("padding: 6px; min-width: 80px;")
+        self.about_btn.setStyleSheet("padding: 6px;")
         self.about_btn.clicked.connect(self._show_about)
         
         tool_btn_layout.addWidget(self.settings_btn)
@@ -1530,11 +1513,11 @@ class FlashTool(QMainWindow):
         status_layout = QVBoxLayout()
         
         self.device_status = QLabel("等待设备连接...")
-        self.device_status.setStyleSheet("font-size: 12pt; font-weight: bold; color: #666666;")
+        self.device_status.setStyleSheet("font-size: 14pt; font-weight: bold; color: #666666;")
         
         # 设备信息
         self.device_info = QLabel()
-        self.device_info.setStyleSheet("font-size: 10pt;")
+        self.device_info.setStyleSheet("font-size: 12pt;")
         
         status_layout.addWidget(self.device_status)
         status_layout.addWidget(self.device_info)
@@ -1545,7 +1528,7 @@ class FlashTool(QMainWindow):
         details_layout = QVBoxLayout()
         
         self.device_details = QLabel("设备详细信息将在此显示")
-        self.device_details.setStyleSheet("font-size: 9pt;")
+        self.device_details.setStyleSheet("font-size: 10pt;")
         self.device_details.setWordWrap(True)
         
         details_layout.addWidget(self.device_details)
@@ -1557,22 +1540,22 @@ class FlashTool(QMainWindow):
         
         self.bootloader_btn = QPushButton("进入Bootloader")
         self.bootloader_btn.setIcon(QIcon(":/icons/bootloader.png"))
-        self.bootloader_btn.setStyleSheet("padding: 8px; min-width: 120px;")
+        self.bootloader_btn.setStyleSheet("padding: 8px;")
         self.bootloader_btn.clicked.connect(self._enter_bootloader)
         
         self.recovery_btn = QPushButton("进入Recovery")
         self.recovery_btn.setIcon(QIcon(":/icons/recovery.png"))
-        self.recovery_btn.setStyleSheet("padding: 8px; min-width: 120px;")
+        self.recovery_btn.setStyleSheet("padding: 8px;")
         self.recovery_btn.clicked.connect(self._enter_recovery)
         
         self.reboot_btn = QPushButton("重启设备")
         self.reboot_btn.setIcon(QIcon(":/icons/reboot.png"))
-        self.reboot_btn.setStyleSheet("padding: 8px; min-width: 120px;")
+        self.reboot_btn.setStyleSheet("padding: 8px;")
         self.reboot_btn.clicked.connect(self._reboot_device)
         
         self.detect_mtk_btn = QPushButton("检测MTK设备")
         self.detect_mtk_btn.setIcon(QIcon(":/icons/detect.png"))
-        self.detect_mtk_btn.setStyleSheet("padding: 8px; min-width: 120px;")
+        self.detect_mtk_btn.setStyleSheet("padding: 8px;")
         self.detect_mtk_btn.clicked.connect(self._detect_mtk_devices)
         
         btn_layout.addWidget(self.bootloader_btn, 0, 0)
@@ -1615,10 +1598,10 @@ class FlashTool(QMainWindow):
         
         file_select_layout = QHBoxLayout()
         self.file_label = QLabel("未选择固件")
-        self.file_label.setStyleSheet("font-size: 10pt;")
+        self.file_label.setStyleSheet("font-size: 11pt;")
         select_btn = QPushButton("选择固件")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_btn.setStyleSheet("padding: 6px;")
         select_btn.clicked.connect(self._select_firmware)
         
         file_select_layout.addWidget(self.file_label)
@@ -1632,7 +1615,7 @@ class FlashTool(QMainWindow):
         partition_layout = QVBoxLayout()
         
         self.partition_combo = QComboBox()
-        self.partition_combo.setStyleSheet("padding: 6px; font-size: 10pt;")
+        self.partition_combo.setStyleSheet("padding: 6px; font-size: 11pt;")
         self.partition_combo.addItems(["全部", "boot", "recovery", "system", "vendor", "userdata", "cache", "vbmeta"])
         
         partition_layout.addWidget(self.partition_combo)
@@ -1640,12 +1623,12 @@ class FlashTool(QMainWindow):
         
         # 进度条
         self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 10pt; }")
+        self.progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 11pt; }")
         
         # 刷机按钮
         self.flash_btn = QPushButton("开始刷机")
         self.flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.flash_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.flash_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
         self.flash_btn.clicked.connect(self._start_flashing)
         
         # 添加支持格式说明
@@ -1679,10 +1662,10 @@ class FlashTool(QMainWindow):
         
         path_select_layout = QHBoxLayout()
         self.backup_path_label = QLabel("未选择备份路径")
-        self.backup_path_label.setStyleSheet("font-size: 10pt;")
+        self.backup_path_label.setStyleSheet("font-size: 11pt;")
         select_btn = QPushButton("选择路径")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_btn.setStyleSheet("padding: 6px;")
         select_btn.clicked.connect(self._select_backup_path)
         
         path_select_layout.addWidget(self.backup_path_label)
@@ -1696,7 +1679,7 @@ class FlashTool(QMainWindow):
         partition_layout = QVBoxLayout()
         
         self.backup_partition_combo = QComboBox()
-        self.backup_partition_combo.setStyleSheet("padding: 6px; font-size: 10pt;")
+        self.backup_partition_combo.setStyleSheet("padding: 6px; font-size: 11pt;")
         self.backup_partition_combo.addItems(["boot", "recovery", "system", "vendor", "userdata", "cache"])
         
         partition_layout.addWidget(self.backup_partition_combo)
@@ -1705,7 +1688,7 @@ class FlashTool(QMainWindow):
         # 备份按钮
         self.backup_btn = QPushButton("开始备份")
         self.backup_btn.setIcon(QIcon(":/icons/backup.png"))
-        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.backup_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
         self.backup_btn.clicked.connect(self._start_backup)
         
         # 添加提示信息
@@ -1738,12 +1721,12 @@ class FlashTool(QMainWindow):
         
         self.adb_command_input = QLineEdit()
         self.adb_command_input.setPlaceholderText("输入ADB命令，例如: shell ls /sdcard")
-        self.adb_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.adb_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
         
         # 执行按钮
         execute_btn = QPushButton("执行ADB命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 120px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
         execute_btn.clicked.connect(self._execute_adb_command)
         
         input_layout.addWidget(self.adb_command_input)
@@ -1756,7 +1739,7 @@ class FlashTool(QMainWindow):
         
         self.adb_output = QPlainTextEdit()
         self.adb_output.setReadOnly(True)
-        self.adb_output.setStyleSheet("font-family: monospace; font-size: 9pt;")
+        self.adb_output.setStyleSheet("font-family: monospace; font-size: 10pt;")
         
         output_layout.addWidget(self.adb_output)
         output_group.setLayout(output_layout)
@@ -1778,7 +1761,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_adb_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1808,12 +1791,12 @@ class FlashTool(QMainWindow):
         
         self.fastboot_command_input = QLineEdit()
         self.fastboot_command_input.setPlaceholderText("输入Fastboot命令，例如: devices")
-        self.fastboot_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.fastboot_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
         
         # 执行按钮
         execute_btn = QPushButton("执行Fastboot命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 120px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
         execute_btn.clicked.connect(self._execute_fastboot_command)
         
         input_layout.addWidget(self.fastboot_command_input)
@@ -1826,7 +1809,7 @@ class FlashTool(QMainWindow):
         
         self.fastboot_output = QPlainTextEdit()
         self.fastboot_output.setReadOnly(True)
-        self.fastboot_output.setStyleSheet("font-family: monospace; font-size: 9pt;")
+        self.fastboot_output.setStyleSheet("font-family: monospace; font-size: 10pt;")
         
         output_layout.addWidget(self.fastboot_output)
         output_group.setLayout(output_layout)
@@ -1848,7 +1831,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_fastboot_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1880,7 +1863,7 @@ class FlashTool(QMainWindow):
             "警告: 解锁Bootloader会清除设备上的所有数据!\n\n"
             "请在操作前备份重要数据。某些设备可能需要先申请解锁许可。"
         )
-        warning_label.setStyleSheet("color: red; font-weight: bold; font-size: 10pt;")
+        warning_label.setStyleSheet("color: red; font-weight: bold; font-size: 11pt;")
         warning_label.setWordWrap(True)
         
         warning_layout.addWidget(warning_label)
@@ -1889,13 +1872,13 @@ class FlashTool(QMainWindow):
         # 解锁按钮
         unlock_btn = QPushButton("解锁Bootloader")
         unlock_btn.setIcon(QIcon(":/icons/unlock.png"))
-        unlock_btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 150px;")
+        unlock_btn.setStyleSheet("background-color: #ff4444; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
         unlock_btn.clicked.connect(self._unlock_bootloader)
         
         # 锁定按钮
         lock_btn = QPushButton("锁定Bootloader")
         lock_btn.setIcon(QIcon(":/icons/lock.png"))
-        lock_btn.setStyleSheet("background-color: #4444ff; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 150px;")
+        lock_btn.setStyleSheet("background-color: #4444ff; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
         lock_btn.clicked.connect(self._lock_bootloader)
         
         # 状态显示
@@ -1903,7 +1886,7 @@ class FlashTool(QMainWindow):
         status_layout = QVBoxLayout()
         
         self.unlock_status = QLabel("设备状态: 未知")
-        self.unlock_status.setStyleSheet("font-size: 10pt;")
+        self.unlock_status.setStyleSheet("font-size: 11pt;")
         
         status_layout.addWidget(self.unlock_status)
         status_group.setLayout(status_layout)
@@ -1920,7 +1903,7 @@ class FlashTool(QMainWindow):
             "4. 按照设备屏幕上的提示操作"
         )
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("font-size: 9pt;")
+        instructions.setStyleSheet("font-size: 10pt;")
         
         instructions_layout.addWidget(instructions)
         instructions_group.setLayout(instructions_layout)
@@ -1947,10 +1930,10 @@ class FlashTool(QMainWindow):
         
         file_select_layout = QHBoxLayout()
         self.xiaomi_file_label = QLabel("未选择小米线刷包")
-        self.xiaomi_file_label.setStyleSheet("font-size: 10pt;")
+        self.xiaomi_file_label.setStyleSheet("font-size: 11pt;")
         select_btn = QPushButton("选择线刷包")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_btn.setStyleSheet("padding: 6px;")
         select_btn.clicked.connect(self._select_xiaomi_firmware)
         
         file_select_layout.addWidget(self.xiaomi_file_label)
@@ -1965,9 +1948,9 @@ class FlashTool(QMainWindow):
         
         self.clean_all_check = QCheckBox("清除所有数据")
         self.clean_all_check.setChecked(True)
-        self.clean_all_check.setStyleSheet("font-size: 10pt;")
+        self.clean_all_check.setStyleSheet("font-size: 11pt;")
         self.lock_bootloader_check = QCheckBox("锁定Bootloader")
-        self.lock_bootloader_check.setStyleSheet("font-size: 10pt;")
+        self.lock_bootloader_check.setStyleSheet("font-size: 11pt;")
         
         options_layout.addWidget(self.clean_all_check)
         options_layout.addWidget(self.lock_bootloader_check)
@@ -1975,12 +1958,12 @@ class FlashTool(QMainWindow):
         
         # 进度条
         self.xiaomi_progress_bar = QProgressBar()
-        self.xiaomi_progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 10pt; }")
+        self.xiaomi_progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 11pt; }")
         
         # 刷机按钮
         self.xiaomi_flash_btn = QPushButton("开始小米线刷")
         self.xiaomi_flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.xiaomi_flash_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.xiaomi_flash_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 10px; font-size: 12pt;")
         self.xiaomi_flash_btn.clicked.connect(self._start_xiaomi_flashing)
         
         # 组装布局
@@ -2017,17 +2000,17 @@ class FlashTool(QMainWindow):
         command_input_layout = QHBoxLayout()
         self.mtk_command_input = QLineEdit()
         self.mtk_command_input.setPlaceholderText("输入MTKClient命令，例如: printgpt")
-        self.mtk_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.mtk_command_input.setStyleSheet("padding: 8px; font-size: 11pt;")
         self.mtk_command_input.returnPressed.connect(self._execute_mtk_command)
         
         execute_btn = QPushButton("执行")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 80px;")
+        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
         execute_btn.clicked.connect(self._execute_mtk_command)
         
         stop_btn = QPushButton("停止")
         stop_btn.setIcon(QIcon(":/icons/stop.png"))
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; min-width: 80px;")
+        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
         stop_btn.clicked.connect(self._stop_mtk_command)
         
         command_input_layout.addWidget(self.mtk_command_input)
@@ -2056,7 +2039,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_mtk_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -2074,21 +2057,21 @@ class FlashTool(QMainWindow):
         detect_btn_layout = QHBoxLayout()
         self.start_detect_btn = QPushButton("持续检测设备")
         self.start_detect_btn.setIcon(QIcon(":/icons/scan.png"))
-        self.start_detect_btn.setStyleSheet("padding: 6px; min-width: 120px;")
+        self.start_detect_btn.setStyleSheet("padding: 6px;")
         self.stop_detect_btn = QPushButton("停止检测")
         self.stop_detect_btn.setIcon(QIcon(":/icons/stop.png"))
-        self.stop_detect_btn.setStyleSheet("padding: 6px; min-width: 120px;")
+        self.stop_detect_btn.setStyleSheet("padding: 6px;")
         self.stop_detect_btn.setEnabled(False)
         
         self.start_detect_btn.clicked.connect(self._start_detect_mtk)
         self.stop_detect_btn.clicked.connect(self._stop_detect_mtk)
         
-        # 设备连接状态
-        self.mtk_status_label = QLabel("设备状态: 未连接")
-        self.mtk_status_label.setStyleSheet("font-size: 10pt; font-weight: bold;")
-        
         detect_btn_layout.addWidget(self.start_detect_btn)
         detect_btn_layout.addWidget(self.stop_detect_btn)
+        
+        # 设备连接状态
+        self.mtk_status_label = QLabel("设备状态: 未连接")
+        self.mtk_status_label.setStyleSheet("font-size: 11pt; font-weight: bold;")
         
         detect_layout.addLayout(detect_btn_layout)
         detect_layout.addWidget(self.mtk_status_label)
@@ -2100,7 +2083,7 @@ class FlashTool(QMainWindow):
         
         self.mtk_output = QTextEdit()
         self.mtk_output.setReadOnly(True)
-        self.mtk_output.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #f0f0f0;")
+        self.mtk_output.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #f0f0f0;")
         
         output_layout.addWidget(self.mtk_output)
         output_group.setLayout(output_layout)
@@ -2117,264 +2100,102 @@ class FlashTool(QMainWindow):
     
     def _apply_theme(self):
         """应用主题设置"""
-        theme = self.settings.value("theme", "夏 (蓝白)")
+        theme = self.settings.value("theme", "蓝色")
         
-        if theme == "春 (绿白)":
-            spring_palette = QPalette()
-            spring_palette.setColor(QPalette.Window, QColor(240, 255, 240))
-            spring_palette.setColor(QPalette.WindowText, Qt.black)
-            spring_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            spring_palette.setColor(QPalette.AlternateBase, QColor(240, 255, 240))
-            spring_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            spring_palette.setColor(QPalette.ToolTipText, Qt.black)
-            spring_palette.setColor(QPalette.Text, Qt.black)
-            spring_palette.setColor(QPalette.Button, QColor(220, 255, 220))
-            spring_palette.setColor(QPalette.ButtonText, Qt.black)
-            spring_palette.setColor(QPalette.BrightText, Qt.red)
-            spring_palette.setColor(QPalette.Link, QColor(76, 175, 80))
-            spring_palette.setColor(QPalette.Highlight, QColor(76, 175, 80))
-            spring_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(spring_palette)
+        if theme == "深色":
+            dark_palette = QPalette()
+            dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.WindowText, Qt.white)
+            dark_palette.setColor(QPalette.Base, QColor(35, 35, 35))
+            dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+            dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+            dark_palette.setColor(QPalette.Text, Qt.white)
+            dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ButtonText, Qt.white)
+            dark_palette.setColor(QPalette.BrightText, Qt.red)
+            dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+            dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+            dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+            QApplication.setPalette(dark_palette)
             
             self.setStyleSheet("""
                 QMainWindow {
-                    background-color: #f0fff0;
+                    background-color: #333333;
                 }
                 QGroupBox {
-                    border: 1px solid #c8e6c9;
+                    border: 1px solid #444444;
                     border-radius: 4px;
                     margin-top: 10px;
                     padding-top: 15px;
-                    background-color: #e8f5e9;
+                    color: #e0e0e0;
                 }
                 QGroupBox::title {
                     subcontrol-origin: margin;
                     left: 10px;
-                    color: #2e7d32;
+                    color: #bbbbbb;
                 }
                 QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: 1px solid #388E3C;
+                    background-color: #555555;
+                    color: #e0e0e0;
+                    border: 1px solid #666666;
                     padding: 5px;
                     border-radius: 4px;
                 }
                 QPushButton:hover {
-                    background-color: #388E3C;
+                    background-color: #666666;
                 }
                 QPushButton:pressed {
-                    background-color: #1B5E20;
+                    background-color: #444444;
                 }
                 QTabBar::tab {
-                    background: #e8f5e9;
-                    color: #555555;
+                    background: #444444;
+                    color: #e0e0e0;
                     padding: 8px;
                     border-top-left-radius: 4px;
                     border-top-right-radius: 4px;
                 }
                 QTabBar::tab:selected {
-                    background: #ffffff;
+                    background: #555555;
                     border-bottom: 2px solid #4CAF50;
                 }
                 QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #c8e6c9;
+                    background-color: #444444;
+                    color: #e0e0e0;
+                    border: 1px solid #555555;
                     padding: 3px;
                     border-radius: 3px;
                 }
                 QProgressBar {
-                    border: 1px solid #c8e6c9;
+                    border: 1px solid #444444;
                     border-radius: 3px;
                     text-align: center;
-                    background-color: white;
+                    background-color: #444444;
                 }
                 QProgressBar::chunk {
                     background-color: #4CAF50;
                     width: 10px;
                 }
                 QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #e8f5e9;
+                    color: #e0e0e0;
                 }
             """)
-        elif theme == "秋 (橙白)":
-            autumn_palette = QPalette()
-            autumn_palette.setColor(QPalette.Window, QColor(255, 243, 224))
-            autumn_palette.setColor(QPalette.WindowText, Qt.black)
-            autumn_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            autumn_palette.setColor(QPalette.AlternateBase, QColor(255, 243, 224))
-            autumn_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            autumn_palette.setColor(QPalette.ToolTipText, Qt.black)
-            autumn_palette.setColor(QPalette.Text, Qt.black)
-            autumn_palette.setColor(QPalette.Button, QColor(255, 183, 77))
-            autumn_palette.setColor(QPalette.ButtonText, Qt.black)
-            autumn_palette.setColor(QPalette.BrightText, Qt.red)
-            autumn_palette.setColor(QPalette.Link, QColor(255, 152, 0))
-            autumn_palette.setColor(QPalette.Highlight, QColor(255, 152, 0))
-            autumn_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(autumn_palette)
-            
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #fff3e0;
-                }
-                QGroupBox {
-                    border: 1px solid #ffe0b2;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #fff8e1;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #ef6c00;
-                }
-                QPushButton {
-                    background-color: #FF9800;
-                    color: white;
-                    border: 1px solid #F57C00;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #F57C00;
-                }
-                QPushButton:pressed {
-                    background-color: #E65100;
-                }
-                QTabBar::tab {
-                    background: #fff8e1;
-                    color: #555555;
-                    padding: 8px;
-                    border-top-left-radius: 4px;
-                    border-top-right-radius: 4px;
-                }
-                QTabBar::tab:selected {
-                    background: #ffffff;
-                    border-bottom: 2px solid #FF9800;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #ffe0b2;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #ffe0b2;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #FF9800;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #fff8e1;
-                }
-            """)
-        elif theme == "冬 (纯白)":
-            winter_palette = QPalette()
-            winter_palette.setColor(QPalette.Window, QColor(255, 255, 255))
-            winter_palette.setColor(QPalette.WindowText, Qt.black)
-            winter_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            winter_palette.setColor(QPalette.AlternateBase, QColor(245, 245, 245))
-            winter_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            winter_palette.setColor(QPalette.ToolTipText, Qt.black)
-            winter_palette.setColor(QPalette.Text, Qt.black)
-            winter_palette.setColor(QPalette.Button, QColor(245, 245, 245))
-            winter_palette.setColor(QPalette.ButtonText, Qt.black)
-            winter_palette.setColor(QPalette.BrightText, Qt.red)
-            winter_palette.setColor(QPalette.Link, QColor(33, 150, 243))
-            winter_palette.setColor(QPalette.Highlight, QColor(33, 150, 243))
-            winter_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(winter_palette)
-            
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #ffffff;
-                }
-                QGroupBox {
-                    border: 1px solid #e0e0e0;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #f5f5f5;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #616161;
-                }
-                QPushButton {
-                    background-color: #e0e0e0;
-                    color: #212121;
-                    border: 1px solid #bdbdbd;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #bdbdbd;
-                }
-                QPushButton:pressed {
-                    background-color: #9e9e9e;
-                }
-                QTabBar::tab {
-                    background: #f5f5f5;
-                    color: #555555;
-                    padding: 8px;
-                    border-top-left-radius: 4px;
-                    border-top-right-radius: 4px;
-                }
-                QTabBar::tab:selected {
-                    background: #ffffff;
-                    border-bottom: 2px solid #9e9e9e;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #e0e0e0;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #e0e0e0;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #9e9e9e;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #f5f5f5;
-                }
-            """)
-        else:  # 夏 (蓝白) - 默认主题
-            summer_palette = QPalette()
-            summer_palette.setColor(QPalette.Window, QColor(240, 248, 255))
-            summer_palette.setColor(QPalette.WindowText, Qt.black)
-            summer_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            summer_palette.setColor(QPalette.AlternateBase, QColor(230, 240, 255))
-            summer_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            summer_palette.setColor(QPalette.ToolTipText, Qt.black)
-            summer_palette.setColor(QPalette.Text, Qt.black)
-            summer_palette.setColor(QPalette.Button, QColor(220, 230, 255))
-            summer_palette.setColor(QPalette.ButtonText, Qt.black)
-            summer_palette.setColor(QPalette.BrightText, Qt.red)
-            summer_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-            summer_palette.setColor(QPalette.Highlight, QColor(65, 105, 225))
-            summer_palette.setColor(QPalette.HighlightedText, Qt.white)
-            QApplication.setPalette(summer_palette)
+        elif theme == "蓝色":
+            blue_palette = QPalette()
+            blue_palette.setColor(QPalette.Window, QColor(240, 248, 255))
+            blue_palette.setColor(QPalette.WindowText, Qt.black)
+            blue_palette.setColor(QPalette.Base, QColor(255, 255, 255))
+            blue_palette.setColor(QPalette.AlternateBase, QColor(230, 240, 255))
+            blue_palette.setColor(QPalette.ToolTipBase, Qt.white)
+            blue_palette.setColor(QPalette.ToolTipText, Qt.black)
+            blue_palette.setColor(QPalette.Text, Qt.black)
+            blue_palette.setColor(QPalette.Button, QColor(220, 230, 255))
+            blue_palette.setColor(QPalette.ButtonText, Qt.black)
+            blue_palette.setColor(QPalette.BrightText, Qt.red)
+            blue_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+            blue_palette.setColor(QPalette.Highlight, QColor(65, 105, 225))
+            blue_palette.setColor(QPalette.HighlightedText, Qt.white)
+            QApplication.setPalette(blue_palette)
             
             self.setStyleSheet("""
                 QMainWindow {
@@ -2435,8 +2256,63 @@ class FlashTool(QMainWindow):
                 QLabel {
                     color: #333333;
                 }
-                QStatusBar {
-                    background-color: #e6f0ff;
+            """)
+        else:  # 浅色主题
+            QApplication.setPalette(QStyleFactory.create("Fusion").standardPalette())
+            self.setStyleSheet("""
+                QMainWindow {
+                    background-color: #f0f0f0;
+                }
+                QGroupBox {
+                    border: 1px solid #cccccc;
+                    border-radius: 4px;
+                    margin-top: 10px;
+                    padding-top: 15px;
+                    background-color: #ffffff;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    color: #555555;
+                }
+                QPushButton {
+                    background-color: #e0e0e0;
+                    border: 1px solid #cccccc;
+                    padding: 5px;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background-color: #d0d0d0;
+                }
+                QPushButton:pressed {
+                    background-color: #c0c0c0;
+                }
+                QTabBar::tab {
+                    background: #e0e0e0;
+                    color: #555555;
+                    padding: 8px;
+                    border-top-left-radius: 4px;
+                    border-top-right-radius: 4px;
+                }
+                QTabBar::tab:selected {
+                    background: #ffffff;
+                    border-bottom: 2px solid #2196F3;
+                }
+                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
+                    background-color: white;
+                    border: 1px solid #cccccc;
+                    padding: 3px;
+                    border-radius: 3px;
+                }
+                QProgressBar {
+                    border: 1px solid #cccccc;
+                    border-radius: 3px;
+                    text-align: center;
+                    background-color: white;
+                }
+                QProgressBar::chunk {
+                    background-color: #2196F3;
+                    width: 10px;
                 }
             """)
     
@@ -3169,7 +3045,7 @@ class FlashTool(QMainWindow):
                     self.log_signal.emit(f"{partition} 分区刷入成功!")
                     self.progress_signal.emit(100)
                 else:
-                    self.log_signal.emit(f"刷入失败: {self.adb.last_error}")
+                    self.log_signal.emit(f"{partition} 分区刷入失败: {self.adb.last_error}")
                     self.progress_signal.emit(0)
             else:
                 # 处理固件包（zip/tar.gz等）
@@ -3389,7 +3265,7 @@ if __name__ == "__main__":
     app.setStyle('Fusion')
     
     # 设置全局字体为微软雅黑
-    font = QFont("Microsoft YaHei", 9)
+    font = QFont("Microsoft YaHei", 10)
     app.setFont(font)
     
     # 创建启动画面
