@@ -36,7 +36,7 @@ V1.7 Beta-wxPython版：
   或  
   "<你的Python路径>" -m pip install wxPython  
   
-V1.7 Beta-PySimpleGUI版：
+V1.7 Beta-PySimpleGUI版：  
   py -m pip install PySimpleGUI  
   或  
   "<你的Python路径>" -m pip install PySimpleGUI  
