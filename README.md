@@ -31,16 +31,6 @@ V1.6之前：
 V1.7 Beta版：  
   无需安装依赖  
   
-V1.7 Beta-wxPython版：  
-  py -m pip install wxPython  
-  或  
-  "<你的Python路径>" -m pip install wxPython  
-  
-V1.7 Beta-PySimpleGUI版：  
-  py -m pip install PySimpleGUI  
-  或  
-  "<你的Python路径>" -m pip install PySimpleGUI  
-  
 开始运行：  
   
 安装Python结束run.bat可能会退出（我不知道），重新运行即可  
