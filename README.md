@@ -28,7 +28,7 @@ V1.6之前：
   或  
   "<你的Python路径>" -m pip install PyQt5  
   
-V1.7 Beta版：  
+V1.7和Beta版：  
   无需安装依赖  
   
 开始运行：  
