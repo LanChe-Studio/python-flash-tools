@@ -19,8 +19,28 @@ V1.4之前（包括V1.5-Lite）可以直接运行打包好的.exe文件
 V1.5只后（不含V1.5-Lite）只能运行run.bat启动主程序  
 运行run.bat的同时会弹出python3.11.2的安装程序（微软自动安装）  
 安装时请勾选下方的添加到系统PATH  
-然后运行：pip install PyQt5  
-等到安装结束run.bat可能会退出（我不知道），重新运行即可  
+如果没有弹出安装程序请手动运行.zip文件下的python.exe手动安装
+
+安装必备依赖：
+  
+V1.6之前：  
+  py -m pip install PyQt5  
+  或  
+  "<你的Python路径>" -m pip install PyQt5  
+V1.7 Beta版：  
+  无需安装依赖  
+V1.7 Beta-wxPython版：  
+  py -m pip install wxPython  
+  或  
+  "<你的Python路径>" -m pip install wxPython  
+V1.7 Beta-PySimpleGUI版：
+  py -m pip install PySimpleGUI  
+  或  
+  "<你的Python路径>" -m pip install PySimpleGUI  
+  
+开始运行：  
+  
+安装Python结束run.bat可能会退出（我不知道），重新运行即可  
 然后就能进入主程序了  
 会自动检测python路径  
 注：V1.5和V1.6 Beta都没有第一次运行报存依赖文件的功能，自己设置的会保存  
