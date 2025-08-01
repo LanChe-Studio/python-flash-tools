@@ -27,12 +27,15 @@ V1.6之前：
   py -m pip install PyQt5  
   或  
   "<你的Python路径>" -m pip install PyQt5  
+  
 V1.7 Beta版：  
   无需安装依赖  
+  
 V1.7 Beta-wxPython版：  
   py -m pip install wxPython  
   或  
   "<你的Python路径>" -m pip install wxPython  
+  
 V1.7 Beta-PySimpleGUI版：
   py -m pip install PySimpleGUI  
   或  
