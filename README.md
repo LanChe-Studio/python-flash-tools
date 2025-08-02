@@ -23,7 +23,7 @@ V1.5只后（不含V1.5-Lite）只能运行run.bat启动主程序
 
 安装必备依赖：
   
-V1.6之前：  
+V1.6之前、V1.9 Beta版及之后：  
   py -m pip install PyQt5  
   或  
   "<你的Python路径>" -m pip install PyQt5  
