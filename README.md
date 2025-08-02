@@ -30,6 +30,11 @@ V1.6之前：
   
 V1.7和Beta版：  
   无需安装依赖  
+
+V1.8和Beta版：  
+  py -m pip install PySide6
+  或  
+  "<你的Python路径>" -m pip install PySide6  
   
 开始运行：  
   
