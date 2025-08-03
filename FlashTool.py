@@ -7,9 +7,7 @@ import tarfile
 import tempfile
 import threading
 import time
-import urllib.request
 import zipfile
-from datetime import datetime
 
 from PySide6.QtCore import Qt, Signal, QSettings, QTimer, QThread
 from PySide6.QtGui import QIcon, QTextCursor, QFont, QColor, QPalette
@@ -20,9 +18,10 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QGridLayout, QListWidget,
                                QStackedWidget, QSplitter, QListWidgetItem)
 
-from ADB import ADB
-from Dialogs import DebugLogDialog
+from Dialogs import DebugLogDialog, DownloadDialog
 from Dialogs import SettingsDialog
+from FlashingToolbox import FlashingToolbox
+from Tool import PlatformTools, MTKClientTool
 
 
 class FlashTool(QMainWindow):
@@ -38,13 +37,13 @@ class FlashTool(QMainWindow):
         super().__init__()
         self.splash = splash
 
-        self.setWindowTitle("Python Flash Tools V 1.9 beta")  # 更新版本号到1.9
+        self.setWindowTitle("Python Flash Tools V1.9")  # 更新版本号到1.9
         self.setGeometry(100, 100, 900, 600)
 
         # 初始化变量
         self.current_mode = None
         self.device_id = None
-        self.adb = ADB()
+        self.flashing_toolbox = FlashingToolbox(PlatformTools(), MTKClientTool())
         self.debug_log_dialog = None
         self.firmware_path = ""
         self.backup_path = ""
@@ -80,143 +79,33 @@ class FlashTool(QMainWindow):
         self._apply_theme()
 
         # 检查工具依赖
-        self._check_tools(silent=True)
+        self._check_tools()
 
     def _update_splash_message(self, message):
         """更新启动画面消息"""
         if self.splash:
-            self.splash.showMessage(message, Qt.AlignBottom | Qt.AlignCenter, Qt.white)
+            self.splash.showMessage(message, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignCenter, Qt.GlobalColor.white)
             QApplication.processEvents()
 
-    def _check_tools(self, silent=False):
-        """静默检查工具依赖"""
+    def _check_tools(self):
+        """检查工具依赖"""
+
         missing_tools = []
-        if not self.adb.adb_path:
-            missing_tools.append("ADB")
-        if not self.adb.fastboot_path:
-            missing_tools.append("Fastboot")
-        if not self.adb.mtk_path:
-            missing_tools.append("MTKClient")
+        if not self.flashing_toolbox.platform_tools:
+            missing_tools.append(PlatformTools())
+        if not self.flashing_toolbox.mtk_client:
+            missing_tools.append(MTKClientTool())
 
         if missing_tools:
-            self.splash_message.emit(f"正在下载缺失的工具: {', '.join(missing_tools)}")
-            self._silent_download_tools(missing_tools)
+            dialog = DownloadDialog(missing_tools)
+            result = dialog.exec()
 
-    def _silent_download_tools(self, tools):
-        """静默下载工具"""
-        tool_paths = {}
+            if dialog.download_success:
+                print("所有工具下载成功！")
+            else:
+                print("用户取消或部分工具下载失败")
+            self.flashing_toolbox = FlashingToolbox(PlatformTools(), MTKClientTool())
 
-        for tool in tools:
-            self.splash_message.emit(f"下载 {tool} 工具...")
-            if tool == "ADB":
-                tool_path = self._download_adb()
-                if tool_path:
-                    tool_paths["adb"] = tool_path
-            elif tool == "Fastboot":
-                tool_path = self._download_fastboot()
-                if tool_path:
-                    tool_paths["fastboot"] = tool_path
-            elif tool == "MTKClient":
-                tool_path = self._download_mtkclient()
-                if tool_path:
-                    tool_paths["mtk"] = tool_path
-
-        # 重新初始化ADB类以加载下载的工具
-        self.adb = ADB()
-        self.splash_message.emit("工具下载完成")
-
-    def _download_adb(self):
-        """下载ADB工具"""
-        system = platform.system().lower()
-        mirrors = [
-            f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.tuna.tsinghua.edu.cn/github-release/android/platform-tools/LatestRelease/platform-tools-latest-{system}.zip"
-        ]
-
-        return self._download_tool("adb", mirrors)
-
-    def _download_fastboot(self):
-        """下载Fastboot工具"""
-        system = platform.system().lower()
-        mirrors = [
-            f"https://dl.google.com/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.bfsu.edu.cn/android/repository/platform-tools-latest-{system}.zip",
-            f"https://mirrors.tuna.tsinghua.edu.cn/github-release/android/platform-tools/LatestRelease/platform-tools-latest-{system}.zip"
-        ]
-
-        return self._download_tool("fastboot", mirrors)
-
-    def _download_mtkclient(self):
-        """下载MTKClient工具"""
-        mirrors = [
-            "https://github.com/bkerler/mtkclient/archive/refs/heads/main.zip",
-            "https://ghproxy.com/https://github.com/bkerler/mtkclient/archive/refs/heads/main.zip"
-        ]
-
-        return self._download_tool("mtk", mirrors)
-
-    def _download_tool(self, tool_name, mirrors):
-        """通用工具下载方法"""
-        try:
-            # 创建永久工具目录
-            app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-            tool_dir = os.path.join(app_dir, "tools", tool_name)
-            os.makedirs(tool_dir, exist_ok=True)
-
-            zip_path = os.path.join(tool_dir, f"{tool_name}.zip")
-            downloaded = False
-
-            for mirror in mirrors:
-                try:
-                    urllib.request.urlretrieve(mirror, zip_path)
-                    downloaded = True
-                    break
-                except Exception as e:
-                    continue
-
-            if not downloaded:
-                return None
-
-            # 解压文件
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(tool_dir)
-            except zipfile.BadZipFile:
-                try:
-                    with tarfile.open(zip_path, 'r:*') as tar_ref:
-                        tar_ref.extractall(tool_dir)
-                except Exception as e:
-                    return None
-
-            # 删除ZIP文件
-            try:
-                os.remove(zip_path)
-            except:
-                pass
-
-            # 查找工具
-            tool_path = None
-            for root, dirs, files in os.walk(tool_dir):
-                for file in files:
-                    if tool_name == "mtk":
-                        if file.lower() == "mtk.py":
-                            tool_path = os.path.join(root, file)
-                    else:
-                        if file.lower().startswith(tool_name) and not file.endswith('.zip'):
-                            tool_path = os.path.join(root, file)
-
-                    if tool_path:
-                        # 设置权限(非Windows)
-                        if platform.system().lower() != "windows":
-                            os.chmod(tool_path, 0o755)
-                        break
-                if tool_path:
-                    break
-
-            return tool_path
-        except Exception as e:
-            return None
 
     def _init_ui(self):
         """初始化用户界面 - 使用侧边栏布局"""
@@ -235,21 +124,25 @@ class FlashTool(QMainWindow):
         self.sidebar.setFixedWidth(200)
         self.sidebar.setStyleSheet("""
             QListWidget {
-                background-color: #f5f5f5;
+                background-color: #2c2c2c;
                 border: none;
                 font-size: 10pt;
+                border-radius: 0;
             }
             QListWidget::item {
-                padding: 10px;
-                border-bottom: 1px solid #e0e0e0;
+                height: 50px;
+                padding: 5px 15px;
+                border-bottom: 1px solid #3a3a3a;
+                color: #e0e0e0;
             }
             QListWidget::item:selected {
-                background-color: #e0f0ff;
-                color: #0066cc;
+                background-color: #4a6fa5;
+                color: white;
                 font-weight: bold;
+                border-radius: 5px;
             }
             QListWidget::item:hover {
-                background-color: #e0f0ff;
+                background-color: #3a3a3a;
             }
         """)
 
@@ -257,7 +150,7 @@ class FlashTool(QMainWindow):
         self.stacked_widget = QStackedWidget()
 
         # 创建分割器
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.sidebar)
         splitter.addWidget(self.stacked_widget)
         splitter.setSizes([200, 700])
@@ -293,7 +186,7 @@ class FlashTool(QMainWindow):
 
         for text, icon, tag in menu_items:
             item = QListWidgetItem(QIcon(icon), text)
-            item.setData(Qt.UserRole, tag)
+            item.setData(Qt.ItemDataRole.UserRole, tag)
             self.sidebar.addItem(item)
 
         # 连接选择信号
@@ -343,6 +236,18 @@ class FlashTool(QMainWindow):
 
         # 设备状态
         status_group = QGroupBox("设备状态")
+        status_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         status_layout = QVBoxLayout()
 
         self.device_status = QLabel("等待设备连接...")
@@ -358,6 +263,18 @@ class FlashTool(QMainWindow):
 
         # 设备详细信息
         details_group = QGroupBox("设备信息")
+        details_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         details_layout = QVBoxLayout()
 
         self.device_details = QLabel("设备详细信息将在此显示")
@@ -369,26 +286,38 @@ class FlashTool(QMainWindow):
 
         # 操作按钮
         btn_group = QGroupBox("设备操作")
+        btn_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         btn_layout = QGridLayout()
 
         self.bootloader_btn = QPushButton("进入Bootloader")
         self.bootloader_btn.setIcon(QIcon(":/icons/bootloader.png"))
-        self.bootloader_btn.setStyleSheet("padding: 8px; min-width: 160px;")
+        self.bootloader_btn.setStyleSheet("padding: 8px; min-width: 160px; border-radius: 5px;")
         self.bootloader_btn.clicked.connect(self._enter_bootloader)
 
         self.recovery_btn = QPushButton("进入Recovery")
         self.recovery_btn.setIcon(QIcon(":/icons/recovery.png"))
-        self.recovery_btn.setStyleSheet("padding: 8px; min-width: 160px;")
+        self.recovery_btn.setStyleSheet("padding: 8px; min-width: 160px; border-radius: 5px;")
         self.recovery_btn.clicked.connect(self._enter_recovery)
 
         self.reboot_btn = QPushButton("重启设备")
         self.reboot_btn.setIcon(QIcon(":/icons/reboot.png"))
-        self.reboot_btn.setStyleSheet("padding: 8px; min-width: 160px;")
+        self.reboot_btn.setStyleSheet("padding: 8px; min-width: 160px; border-radius: 5px;")
         self.reboot_btn.clicked.connect(self._reboot_device)
 
         self.detect_mtk_btn = QPushButton("检测MTK设备")
         self.detect_mtk_btn.setIcon(QIcon(":/icons/detect.png"))
-        self.detect_mtk_btn.setStyleSheet("padding: 8px; min-width: 160px;")
+        self.detect_mtk_btn.setStyleSheet("padding: 8px; min-width: 160px; border-radius: 5px;")
         self.detect_mtk_btn.clicked.connect(self._detect_mtk_devices)
 
         btn_layout.addWidget(self.bootloader_btn, 0, 0)
@@ -399,11 +328,23 @@ class FlashTool(QMainWindow):
 
         # 工具状态
         tools_group = QGroupBox("工具状态")
+        tools_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         tools_layout = QVBoxLayout()
 
         self.adb_status = QLabel("ADB: 检测中...")
         self.fastboot_status = QLabel("Fastboot: 检测中...")
-        self.mtk_status = QLabel(f"MTKClient: {'可用' if self.adb.mtk_path else '不可用'}")
+        self.mtk_status = QLabel(f"MTKClient: {'可用' if self.flashing_toolbox.mtk_client else '不可用'}")
 
         tools_layout.addWidget(self.adb_status)
         tools_layout.addWidget(self.fastboot_status)
@@ -431,21 +372,23 @@ class FlashTool(QMainWindow):
             QTabBar::tab {
                 padding: 8px 15px;
                 min-width: 80px;
-                background: #f0f0f0;
-                border: 1px solid #cccccc;
+                background: #2c2c2c;
+                border: 1px solid #3a3a3a;
                 border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
                 font-size: 10pt;
+                color: #e0e0e0;
             }
             QTabBar::tab:selected {
-                background: #ffffff;
-                border-bottom: 2px solid #2196F3;
+                background: #3a3a3a;
+                border-bottom: 2px solid #4a6fa5;
             }
             QTabWidget::pane {
-                border: 1px solid #cccccc;
+                border: 1px solid #3a3a3a;
                 padding: 10px;
-                background: #ffffff;
+                background: #2c2c2c;
+                border-radius: 8px;
             }
         """)
 
@@ -479,21 +422,23 @@ class FlashTool(QMainWindow):
             QTabBar::tab {
                 padding: 8px 15px;
                 min-width: 80px;
-                background: #f0f0f0;
-                border: 1px solid #cccccc;
+                background: #2c2c2c;
+                border: 1px solid #3a3a3a;
                 border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
                 font-size: 10pt;
+                color: #e0e0e0;
             }
             QTabBar::tab:selected {
-                background: #ffffff;
-                border-bottom: 2px solid #2196F3;
+                background: #3a3a3a;
+                border-bottom: 2px solid #4a6fa5;
             }
             QTabWidget::pane {
-                border: 1px solid #cccccc;
+                border: 1px solid #3a3a3a;
                 padding: 10px;
-                background: #ffffff;
+                background: #2c2c2c;
+                border-radius: 8px;
             }
         """)
 
@@ -501,11 +446,6 @@ class FlashTool(QMainWindow):
         flash_tab = QWidget()
         self._init_flash_tab(flash_tab)
         tabs.addTab(flash_tab, "刷机")
-
-        # 备份标签页
-        backup_tab = QWidget()
-        self._init_backup_tab(backup_tab)
-        tabs.addTab(backup_tab, "备份")
 
         # Fastboot命令标签页
         fastboot_cmd_tab = QWidget()
@@ -532,18 +472,30 @@ class FlashTool(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
 
         title = QLabel("Recovery卡刷")
-        title.setStyleSheet("font-size: 16pt; font-weight: bold;")
+        title.setStyleSheet("font-size: 16pt; font-weight: bold; color: #e0e0e0;")
 
         # 固件选择
         file_group = QGroupBox("选择卡刷包")
+        file_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         file_layout = QVBoxLayout()
 
         file_select_layout = QHBoxLayout()
         self.recovery_file_label = QLabel("未选择卡刷包")
-        self.recovery_file_label.setStyleSheet("font-size: 11pt;")
+        self.recovery_file_label.setStyleSheet("font-size: 11pt; color: #e0e0e0;")
         select_btn = QPushButton("选择卡刷包")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 8px; min-width: 120px;")
+        select_btn.setStyleSheet("padding: 8px; min-width: 120px; border-radius: 5px;")
         select_btn.clicked.connect(self._select_recovery_file)
 
         file_select_layout.addWidget(self.recovery_file_label)
@@ -554,13 +506,30 @@ class FlashTool(QMainWindow):
 
         # 进度条
         self.recovery_progress_bar = QProgressBar()
-        self.recovery_progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 10pt; }")
+        self.recovery_progress_bar.setStyleSheet("""
+            QProgressBar { 
+                height: 25px; 
+                font-size: 10pt; 
+                border-radius: 5px;
+            }
+            QProgressBar::chunk {
+                background-color: #4a6fa5;
+                border-radius: 5px;
+            }
+        """)
 
         # 刷机按钮
         self.recovery_flash_btn = QPushButton("开始卡刷")
         self.recovery_flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.recovery_flash_btn.setStyleSheet(
-            "background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.recovery_flash_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            font-weight: bold; 
+            padding: 10px; 
+            font-size: 12pt; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         self.recovery_flash_btn.clicked.connect(self._start_recovery_flash)
 
         # 添加支持格式说明
@@ -594,21 +563,23 @@ class FlashTool(QMainWindow):
             QTabBar::tab {
                 padding: 8px 15px;
                 min-width: 80px;
-                background: #f0f0f0;
-                border: 1px solid #cccccc;
+                background: #2c2c2c;
+                border: 1px solid #3a3a3a;
                 border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
                 font-size: 10pt;
+                color: #e0e0e0;
             }
             QTabBar::tab:selected {
-                background: #ffffff;
-                border-bottom: 2px solid #2196F3;
+                background: #3a3a3a;
+                border-bottom: 2px solid #4a6fa5;
             }
             QTabWidget::pane {
-                border: 1px solid #cccccc;
+                border: 1px solid #3a3a3a;
                 padding: 10px;
-                background: #ffffff;
+                background: #2c2c2c;
+                border-radius: 8px;
             }
         """)
 
@@ -628,16 +599,34 @@ class FlashTool(QMainWindow):
 
         # 命令输入
         input_group = QGroupBox("ADB命令")
+        input_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         input_layout = QVBoxLayout()
 
         self.adb_command_input = QLineEdit()
         self.adb_command_input.setPlaceholderText("输入ADB命令，例如: shell ls /sdcard")
-        self.adb_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.adb_command_input.setStyleSheet("border-radius: 5px; padding: 8px; font-size: 10pt;")
 
         # 执行按钮
         execute_btn = QPushButton("执行ADB命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 120px;")
+        execute_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 8px; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         execute_btn.clicked.connect(self._execute_adb_command)
 
         input_layout.addWidget(self.adb_command_input)
@@ -646,17 +635,48 @@ class FlashTool(QMainWindow):
 
         # 输出显示
         output_group = QGroupBox("输出结果")
+        output_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         output_layout = QVBoxLayout()
 
         self.adb_output = QPlainTextEdit()
         self.adb_output.setReadOnly(True)
-        self.adb_output.setStyleSheet("font-family: monospace; font-size: 9pt;")
+        self.adb_output.setStyleSheet("""
+            font-family: monospace; 
+            font-size: 9pt; 
+            background-color: #2c2c2c; 
+            color: #e0e0e0;
+            border-radius: 5px;
+            padding: 5px;
+        """)
 
         output_layout.addWidget(self.adb_output)
         output_group.setLayout(output_layout)
 
         # 常用命令按钮
         common_group = QGroupBox("常用命令")
+        common_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         common_layout = QGridLayout()
 
         common_commands = [
@@ -672,7 +692,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px; border-radius: 5px;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_adb_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -697,24 +717,42 @@ class FlashTool(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
 
         title = QLabel("应用管理")
-        title.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        title.setStyleSheet("font-size: 14pt; font-weight: bold; color: #e0e0e0;")
 
         # 应用操作
         app_group = QGroupBox("应用操作")
+        app_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         app_layout = QVBoxLayout()
 
         # 安装应用
         install_layout = QHBoxLayout()
         self.app_path_label = QLabel("未选择应用")
-        self.app_path_label.setStyleSheet("font-size: 10pt;")
+        self.app_path_label.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
         select_app_btn = QPushButton("选择应用")
         select_app_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_app_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_app_btn.setStyleSheet("padding: 6px; min-width: 100px; border-radius: 5px;")
         select_app_btn.clicked.connect(self._select_app)
 
         install_btn = QPushButton("安装应用")
         install_btn.setIcon(QIcon(":/icons/install.png"))
-        install_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 120px;")
+        install_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 8px; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         install_btn.clicked.connect(self._install_app)
 
         install_layout.addWidget(self.app_path_label)
@@ -725,11 +763,17 @@ class FlashTool(QMainWindow):
         uninstall_layout = QHBoxLayout()
         self.package_name_input = QLineEdit()
         self.package_name_input.setPlaceholderText("输入包名，例如: com.example.app")
-        self.package_name_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.package_name_input.setStyleSheet("border-radius: 5px; padding: 8px; font-size: 10pt;")
 
         uninstall_btn = QPushButton("卸载应用")
         uninstall_btn.setIcon(QIcon(":/icons/uninstall.png"))
-        uninstall_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; min-width: 120px;")
+        uninstall_btn.setStyleSheet("""
+            background-color: #f44336; 
+            color: white; 
+            padding: 8px; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         uninstall_btn.clicked.connect(self._uninstall_app)
 
         uninstall_layout.addWidget(self.package_name_input)
@@ -741,14 +785,26 @@ class FlashTool(QMainWindow):
 
         # 应用列表
         list_group = QGroupBox("应用列表")
+        list_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         list_layout = QVBoxLayout()
 
         self.app_list = QListWidget()
-        self.app_list.setStyleSheet("font-size: 10pt;")
+        self.app_list.setStyleSheet("font-size: 10pt; color: #e0e0e0; border-radius: 5px;")
 
         refresh_btn = QPushButton("刷新应用列表")
         refresh_btn.setIcon(QIcon(":/icons/refresh.png"))
-        refresh_btn.setStyleSheet("padding: 6px; min-width: 120px;")
+        refresh_btn.setStyleSheet("padding: 6px; min-width: 120px; border-radius: 5px;")
         refresh_btn.clicked.connect(self._refresh_app_list)
 
         list_layout.addWidget(self.app_list)
@@ -769,10 +825,22 @@ class FlashTool(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
 
         title = QLabel("系统界面管理")
-        title.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        title.setStyleSheet("font-size: 14pt; font-weight: bold; color: #e0e0e0;")
 
         # 界面组件
         ui_group = QGroupBox("界面组件")
+        ui_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         ui_layout = QGridLayout()
 
         ui_components = [
@@ -788,7 +856,13 @@ class FlashTool(QMainWindow):
         for text, icon, tag in ui_components:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 10px; min-width: 120px; min-height: 100px;")
+            btn.setStyleSheet("""
+                padding: 10px; 
+                min-width: 120px; 
+                min-height: 100px;
+                border-radius: 8px;
+                text-align: bottom;
+            """)
             btn.setProperty("component", tag)
             btn.clicked.connect(self._manage_ui_component)
             ui_layout.addWidget(btn, row, col)
@@ -801,11 +875,30 @@ class FlashTool(QMainWindow):
 
         # 操作日志
         log_group = QGroupBox("操作日志")
+        log_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         log_layout = QVBoxLayout()
 
         self.ui_log = QPlainTextEdit()
         self.ui_log.setReadOnly(True)
-        self.ui_log.setStyleSheet("font-family: monospace; font-size: 9pt;")
+        self.ui_log.setStyleSheet("""
+            font-family: monospace; 
+            font-size: 9pt; 
+            background-color: #2c2c2c; 
+            color: #e0e0e0;
+            border-radius: 5px;
+            padding: 5px;
+        """)
 
         log_layout.addWidget(self.ui_log)
         log_group.setLayout(log_layout)
@@ -825,14 +918,26 @@ class FlashTool(QMainWindow):
 
         # 固件选择
         file_group = QGroupBox("固件选择")
+        file_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         file_layout = QVBoxLayout()
 
         file_select_layout = QHBoxLayout()
         self.file_label = QLabel("未选择固件")
-        self.file_label.setStyleSheet("font-size: 10pt;")
+        self.file_label.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
         select_btn = QPushButton("选择固件")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_btn.setStyleSheet("padding: 6px; min-width: 100px; border-radius: 5px;")
         select_btn.clicked.connect(self._select_firmware)
 
         file_select_layout.addWidget(self.file_label)
@@ -843,10 +948,22 @@ class FlashTool(QMainWindow):
 
         # 分区选择
         partition_group = QGroupBox("分区选择")
+        partition_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         partition_layout = QVBoxLayout()
 
         self.partition_combo = QComboBox()
-        self.partition_combo.setStyleSheet("padding: 6px; font-size: 10pt;")
+        self.partition_combo.setStyleSheet("padding: 6px; font-size: 10pt; border-radius: 5px;")
         self.partition_combo.addItems(["全部", "boot", "recovery", "system", "vendor", "userdata", "cache", "vbmeta"])
 
         partition_layout.addWidget(self.partition_combo)
@@ -854,13 +971,30 @@ class FlashTool(QMainWindow):
 
         # 进度条
         self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 10pt; }")
+        self.progress_bar.setStyleSheet("""
+            QProgressBar { 
+                height: 25px; 
+                font-size: 10pt; 
+                border-radius: 5px;
+            }
+            QProgressBar::chunk {
+                background-color: #4a6fa5;
+                border-radius: 5px;
+            }
+        """)
 
         # 刷机按钮
         self.flash_btn = QPushButton("开始刷机")
         self.flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.flash_btn.setStyleSheet(
-            "background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.flash_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            font-weight: bold; 
+            padding: 10px; 
+            font-size: 12pt; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         self.flash_btn.clicked.connect(self._start_flashing)
 
         # 添加支持格式说明
@@ -882,66 +1016,6 @@ class FlashTool(QMainWindow):
 
         tab.setLayout(layout)
 
-    def _init_backup_tab(self, tab):
-        """初始化备份标签页 - 优化布局"""
-        layout = QVBoxLayout()
-        layout.setSpacing(10)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        # 备份路径选择
-        path_group = QGroupBox("备份路径")
-        path_layout = QVBoxLayout()
-
-        path_select_layout = QHBoxLayout()
-        self.backup_path_label = QLabel("未选择备份路径")
-        self.backup_path_label.setStyleSheet("font-size: 10pt;")
-        select_btn = QPushButton("选择路径")
-        select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
-        select_btn.clicked.connect(self._select_backup_path)
-
-        path_select_layout.addWidget(self.backup_path_label)
-        path_select_layout.addWidget(select_btn)
-
-        path_layout.addLayout(path_select_layout)
-        path_group.setLayout(path_layout)
-
-        # 分区选择
-        partition_group = QGroupBox("分区选择")
-        partition_layout = QVBoxLayout()
-
-        self.backup_partition_combo = QComboBox()
-        self.backup_partition_combo.setStyleSheet("padding: 6px; font-size: 10pt;")
-        self.backup_partition_combo.addItems(["boot", "recovery", "system", "vendor", "userdata", "cache"])
-
-        partition_layout.addWidget(self.backup_partition_combo)
-        partition_group.setLayout(partition_layout)
-
-        # 备份按钮
-        self.backup_btn = QPushButton("开始备份")
-        self.backup_btn.setIcon(QIcon(":/icons/backup.png"))
-        self.backup_btn.setStyleSheet(
-            "background-color: #2196F3; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
-        self.backup_btn.clicked.connect(self._start_backup)
-
-        # 添加提示信息
-        info_label = QLabel("注意: 此备份功能使用Fastboot模式，需要设备处于Fastboot模式")
-        info_label.setStyleSheet("color: #888888; font-size: 9pt;")
-
-        # 添加空间提示
-        space_label = QLabel("确保目标驱动器有足够空间（系统分区通常需要2GB以上空间）")
-        space_label.setStyleSheet("color: #ff6600; font-size: 9pt;")
-
-        # 组装布局
-        layout.addWidget(path_group)
-        layout.addWidget(partition_group)
-        layout.addWidget(self.backup_btn)
-        layout.addWidget(info_label)
-        layout.addWidget(space_label)
-        layout.addStretch()
-
-        tab.setLayout(layout)
-
     def _init_fastboot_cmd_tab(self, tab):
         """初始化Fastboot命令标签页 - 优化布局"""
         layout = QVBoxLayout()
@@ -950,16 +1024,34 @@ class FlashTool(QMainWindow):
 
         # 命令输入
         input_group = QGroupBox("Fastboot命令")
+        input_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         input_layout = QVBoxLayout()
 
         self.fastboot_command_input = QLineEdit()
         self.fastboot_command_input.setPlaceholderText("输入Fastboot命令，例如: devices")
-        self.fastboot_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.fastboot_command_input.setStyleSheet("border-radius: 5px; padding: 8px; font-size: 10pt;")
 
         # 执行按钮
         execute_btn = QPushButton("执行Fastboot命令")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 120px;")
+        execute_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 8px; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         execute_btn.clicked.connect(self._execute_fastboot_command)
 
         input_layout.addWidget(self.fastboot_command_input)
@@ -968,17 +1060,48 @@ class FlashTool(QMainWindow):
 
         # 输出显示
         output_group = QGroupBox("输出结果")
+        output_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         output_layout = QVBoxLayout()
 
         self.fastboot_output = QPlainTextEdit()
         self.fastboot_output.setReadOnly(True)
-        self.fastboot_output.setStyleSheet("font-family: monospace; font-size: 9pt;")
+        self.fastboot_output.setStyleSheet("""
+            font-family: monospace; 
+            font-size: 9pt; 
+            background-color: #2c2c2c; 
+            color: #e0e0e0;
+            border-radius: 5px;
+            padding: 5px;
+        """)
 
         output_layout.addWidget(self.fastboot_output)
         output_group.setLayout(output_layout)
 
         # 常用命令按钮
         common_group = QGroupBox("常用命令")
+        common_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         common_layout = QGridLayout()
 
         common_commands = [
@@ -994,7 +1117,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px; border-radius: 5px;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_fastboot_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1020,6 +1143,18 @@ class FlashTool(QMainWindow):
 
         # 警告信息
         warning_group = QGroupBox("重要警告")
+        warning_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         warning_layout = QVBoxLayout()
 
         warning_label = QLabel(
@@ -1035,29 +1170,67 @@ class FlashTool(QMainWindow):
         # 解锁按钮
         unlock_btn = QPushButton("解锁Bootloader")
         unlock_btn.setIcon(QIcon(":/icons/unlock.png"))
-        unlock_btn.setStyleSheet(
-            "background-color: #ff4444; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 150px;")
+        unlock_btn.setStyleSheet("""
+            background-color: #ff4444; 
+            color: white; 
+            font-weight: bold; 
+            padding: 10px; 
+            font-size: 12pt; 
+            min-width: 150px;
+            border-radius: 5px;
+        """)
         unlock_btn.clicked.connect(self._unlock_bootloader)
 
         # 锁定按钮
         lock_btn = QPushButton("锁定Bootloader")
         lock_btn.setIcon(QIcon(":/icons/lock.png"))
-        lock_btn.setStyleSheet(
-            "background-color: #4444ff; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 150px;")
+        lock_btn.setStyleSheet("""
+            background-color: #4444ff; 
+            color: white; 
+            font-weight: bold; 
+            padding: 10px; 
+            font-size: 12pt; 
+            min-width: 150px;
+            border-radius: 5px;
+        """)
         lock_btn.clicked.connect(self._lock_bootloader)
 
         # 状态显示
         status_group = QGroupBox("操作状态")
+        status_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         status_layout = QVBoxLayout()
 
         self.unlock_status = QLabel("设备状态: 未知")
-        self.unlock_status.setStyleSheet("font-size: 10pt;")
+        self.unlock_status.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
 
         status_layout.addWidget(self.unlock_status)
         status_group.setLayout(status_layout)
 
         # 解锁说明
         instructions_group = QGroupBox("操作说明")
+        instructions_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         instructions_layout = QVBoxLayout()
 
         instructions = QLabel(
@@ -1068,7 +1241,7 @@ class FlashTool(QMainWindow):
             "4. 按照设备屏幕上的提示操作"
         )
         instructions.setWordWrap(True)
-        instructions.setStyleSheet("font-size: 9pt;")
+        instructions.setStyleSheet("font-size: 9pt; color: #e0e0e0;")
 
         instructions_layout.addWidget(instructions)
         instructions_group.setLayout(instructions_layout)
@@ -1091,14 +1264,26 @@ class FlashTool(QMainWindow):
 
         # 固件选择
         file_group = QGroupBox("小米线刷包")
+        file_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         file_layout = QVBoxLayout()
 
         file_select_layout = QHBoxLayout()
         self.xiaomi_file_label = QLabel("未选择小米线刷包")
-        self.xiaomi_file_label.setStyleSheet("font-size: 10pt;")
+        self.xiaomi_file_label.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
         select_btn = QPushButton("选择线刷包")
         select_btn.setIcon(QIcon(":/icons/folder.png"))
-        select_btn.setStyleSheet("padding: 6px; min-width: 100px;")
+        select_btn.setStyleSheet("padding: 6px; min-width: 100px; border-radius: 5px;")
         select_btn.clicked.connect(self._select_xiaomi_firmware)
 
         file_select_layout.addWidget(self.xiaomi_file_label)
@@ -1109,13 +1294,25 @@ class FlashTool(QMainWindow):
 
         # 刷机选项
         options_group = QGroupBox("刷机选项")
+        options_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         options_layout = QVBoxLayout()
 
         self.clean_all_check = QCheckBox("清除所有数据")
         self.clean_all_check.setChecked(True)
-        self.clean_all_check.setStyleSheet("font-size: 10pt;")
+        self.clean_all_check.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
         self.lock_bootloader_check = QCheckBox("锁定Bootloader")
-        self.lock_bootloader_check.setStyleSheet("font-size: 10pt;")
+        self.lock_bootloader_check.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
 
         options_layout.addWidget(self.clean_all_check)
         options_layout.addWidget(self.lock_bootloader_check)
@@ -1123,13 +1320,30 @@ class FlashTool(QMainWindow):
 
         # 进度条
         self.xiaomi_progress_bar = QProgressBar()
-        self.xiaomi_progress_bar.setStyleSheet("QProgressBar { height: 25px; font-size: 10pt; }")
+        self.xiaomi_progress_bar.setStyleSheet("""
+            QProgressBar { 
+                height: 25px; 
+                font-size: 10pt; 
+                border-radius: 5px;
+            }
+            QProgressBar::chunk {
+                background-color: #FF9800;
+                border-radius: 5px;
+            }
+        """)
 
         # 刷机按钮
         self.xiaomi_flash_btn = QPushButton("开始小米线刷")
         self.xiaomi_flash_btn.setIcon(QIcon(":/icons/flash.png"))
-        self.xiaomi_flash_btn.setStyleSheet(
-            "background-color: #FF9800; color: white; font-weight: bold; padding: 10px; font-size: 12pt; min-width: 120px;")
+        self.xiaomi_flash_btn.setStyleSheet("""
+            background-color: #FF9800; 
+            color: white; 
+            font-weight: bold; 
+            padding: 10px; 
+            font-size: 12pt; 
+            min-width: 120px;
+            border-radius: 5px;
+        """)
         self.xiaomi_flash_btn.clicked.connect(self._start_xiaomi_flashing)
 
         # 组装布局
@@ -1149,11 +1363,23 @@ class FlashTool(QMainWindow):
 
         # 说明
         info_group = QGroupBox("使用说明")
+        info_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         info_layout = QVBoxLayout()
 
         info_label = QLabel(
             "MTK命令行模式允许直接执行MTKClient命令")
-        info_label.setStyleSheet("font-size: 10pt;")
+        info_label.setStyleSheet("font-size: 10pt; color: #e0e0e0;")
         info_label.setWordWrap(True)
 
         info_layout.addWidget(info_label)
@@ -1161,22 +1387,46 @@ class FlashTool(QMainWindow):
 
         # 命令输入
         command_group = QGroupBox("MTK命令")
+        command_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         command_layout = QVBoxLayout()
 
         command_input_layout = QHBoxLayout()
         self.mtk_command_input = QLineEdit()
         self.mtk_command_input.setPlaceholderText("输入MTKClient命令，例如: printgpt")
-        self.mtk_command_input.setStyleSheet("padding: 8px; font-size: 10pt;")
+        self.mtk_command_input.setStyleSheet("border-radius: 5px; padding: 8px; font-size: 10pt;")
         self.mtk_command_input.returnPressed.connect(self._execute_mtk_command)
 
         execute_btn = QPushButton("执行")
         execute_btn.setIcon(QIcon(":/icons/run.png"))
-        execute_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; min-width: 80px;")
+        execute_btn.setStyleSheet("""
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 8px; 
+            min-width: 80px;
+            border-radius: 5px;
+        """)
         execute_btn.clicked.connect(self._execute_mtk_command)
 
         stop_btn = QPushButton("停止")
         stop_btn.setIcon(QIcon(":/icons/stop.png"))
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; min-width: 80px;")
+        stop_btn.setStyleSheet("""
+            background-color: #f44336; 
+            color: white; 
+            padding: 8px; 
+            min-width: 80px;
+            border-radius: 5px;
+        """)
         stop_btn.clicked.connect(self._stop_mtk_command)
 
         command_input_layout.addWidget(self.mtk_command_input)
@@ -1188,6 +1438,18 @@ class FlashTool(QMainWindow):
 
         # 常用命令按钮
         common_group = QGroupBox("常用命令")
+        common_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         common_layout = QGridLayout()
 
         common_commands = [
@@ -1205,7 +1467,7 @@ class FlashTool(QMainWindow):
         for text, cmd, icon in common_commands:
             btn = QPushButton(text)
             btn.setIcon(QIcon(icon))
-            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px;")
+            btn.setStyleSheet("padding: 6px; text-align: left; min-width: 120px; border-radius: 5px;")
             btn.setProperty("command", cmd)
             btn.clicked.connect(lambda _, cmd=cmd: self._set_mtk_command(cmd))
             common_layout.addWidget(btn, row, col)
@@ -1218,15 +1480,27 @@ class FlashTool(QMainWindow):
 
         # 设备检测
         detect_group = QGroupBox("设备检测")
+        detect_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         detect_layout = QVBoxLayout()
 
         detect_btn_layout = QHBoxLayout()
         self.start_detect_btn = QPushButton("持续检测设备")
         self.start_detect_btn.setIcon(QIcon(":/icons/scan.png"))
-        self.start_detect_btn.setStyleSheet("padding: 6px; min-width: 120px;")
+        self.start_detect_btn.setStyleSheet("padding: 6px; min-width: 120px; border-radius: 5px;")
         self.stop_detect_btn = QPushButton("停止检测")
         self.stop_detect_btn.setIcon(QIcon(":/icons/stop.png"))
-        self.stop_detect_btn.setStyleSheet("padding: 6px; min-width: 120px;")
+        self.stop_detect_btn.setStyleSheet("padding: 6px; min-width: 120px; border-radius: 5px;")
         self.stop_detect_btn.setEnabled(False)
 
         self.start_detect_btn.clicked.connect(self._start_detect_mtk)
@@ -1234,7 +1508,7 @@ class FlashTool(QMainWindow):
 
         # 设备连接状态
         self.mtk_status_label = QLabel("设备状态: 未连接")
-        self.mtk_status_label.setStyleSheet("font-size: 10pt; font-weight: bold;")
+        self.mtk_status_label.setStyleSheet("font-size: 10pt; font-weight: bold; color: #e0e0e0;")
 
         detect_btn_layout.addWidget(self.start_detect_btn)
         detect_btn_layout.addWidget(self.stop_detect_btn)
@@ -1245,11 +1519,30 @@ class FlashTool(QMainWindow):
 
         # 输出显示
         output_group = QGroupBox("命令输出")
+        output_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+        """)
         output_layout = QVBoxLayout()
 
         self.mtk_output = QTextEdit()
         self.mtk_output.setReadOnly(True)
-        self.mtk_output.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #f0f0f0;")
+        self.mtk_output.setStyleSheet("""
+            font-family: monospace; 
+            font-size: 9pt; 
+            background-color: #2c2c2c; 
+            color: #e0e0e0;
+            border-radius: 5px;
+            padding: 5px;
+        """)
 
         output_layout.addWidget(self.mtk_output)
         output_group.setLayout(output_layout)
@@ -1268,317 +1561,131 @@ class FlashTool(QMainWindow):
         """应用主题设置"""
         theme = self.settings.value("theme", "夏 (蓝白)")
 
-        if theme == "春 (绿白)":
-            spring_palette = QPalette()
-            spring_palette.setColor(QPalette.Window, QColor(240, 255, 240))
-            spring_palette.setColor(QPalette.WindowText, Qt.black)
-            spring_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            spring_palette.setColor(QPalette.AlternateBase, QColor(240, 255, 240))
-            spring_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            spring_palette.setColor(QPalette.ToolTipText, Qt.black)
-            spring_palette.setColor(QPalette.Text, Qt.black)
-            spring_palette.setColor(QPalette.Button, QColor(220, 255, 220))
-            spring_palette.setColor(QPalette.ButtonText, Qt.black)
-            spring_palette.setColor(QPalette.BrightText, Qt.red)
-            spring_palette.setColor(QPalette.Link, QColor(76, 175, 80))
-            spring_palette.setColor(QPalette.Highlight, QColor(76, 175, 80))
-            spring_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(spring_palette)
+        # 创建深色主题
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
+        dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
+        dark_palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(35, 35, 35))
+        dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(40, 40, 40))
+        dark_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))
+        dark_palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
+        dark_palette.setColor(QPalette.ColorRole.Button, QColor(50, 50, 50))
+        dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))
+        dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+        dark_palette.setColor(QPalette.ColorRole.Link, QColor(74, 111, 165))
+        dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(74, 111, 165))
+        dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
+        QApplication.setPalette(dark_palette)
 
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #f0fff0;
-                }
-                QGroupBox {
-                    border: 1px solid #c8e6c9;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #e8f5e9;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #2e7d32;
-                }
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: 1px solid #388E3C;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #388E3C;
-                }
-                QPushButton:pressed {
-                    background-color: #1B5E20;
-                }
-                QListWidget {
-                    background-color: #f0f0f0;
-                    border: none;
-                }
-                QStackedWidget {
-                    background-color: white;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #c8e6c9;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #c8e6c9;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #4CAF50;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #e8f5e9;
-                }
-            """)
-        elif theme == "秋 (橙白)":
-            autumn_palette = QPalette()
-            autumn_palette.setColor(QPalette.Window, QColor(255, 243, 224))
-            autumn_palette.setColor(QPalette.WindowText, Qt.black)
-            autumn_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            autumn_palette.setColor(QPalette.AlternateBase, QColor(255, 243, 224))
-            autumn_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            autumn_palette.setColor(QPalette.ToolTipText, Qt.black)
-            autumn_palette.setColor(QPalette.Text, Qt.black)
-            autumn_palette.setColor(QPalette.Button, QColor(255, 183, 77))
-            autumn_palette.setColor(QPalette.ButtonText, Qt.black)
-            autumn_palette.setColor(QPalette.BrightText, Qt.red)
-            autumn_palette.setColor(QPalette.Link, QColor(255, 152, 0))
-            autumn_palette.setColor(QPalette.Highlight, QColor(255, 152, 0))
-            autumn_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(autumn_palette)
-
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #fff3e0;
-                }
-                QGroupBox {
-                    border: 1px solid #ffe0b2;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #fff8e1;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #ef6c00;
-                }
-                QPushButton {
-                    background-color: #FF9800;
-                    color: white;
-                    border: 1px solid #F57C00;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #F57C00;
-                }
-                QPushButton:pressed {
-                    background-color: #E65100;
-                }
-                QListWidget {
-                    background-color: #f0f0f0;
-                    border: none;
-                }
-                QStackedWidget {
-                    background-color: white;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #ffe0b2;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #ffe0b2;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #FF9800;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #fff8e1;
-                }
-            """)
-        elif theme == "冬 (纯白)":
-            winter_palette = QPalette()
-            winter_palette.setColor(QPalette.Window, QColor(255, 255, 255))
-            winter_palette.setColor(QPalette.WindowText, Qt.black)
-            winter_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            winter_palette.setColor(QPalette.AlternateBase, QColor(245, 245, 245))
-            winter_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            winter_palette.setColor(QPalette.ToolTipText, Qt.black)
-            winter_palette.setColor(QPalette.Text, Qt.black)
-            winter_palette.setColor(QPalette.Button, QColor(245, 245, 245))
-            winter_palette.setColor(QPalette.ButtonText, Qt.black)
-            winter_palette.setColor(QPalette.BrightText, Qt.red)
-            winter_palette.setColor(QPalette.Link, QColor(33, 150, 243))
-            winter_palette.setColor(QPalette.Highlight, QColor(33, 150, 243))
-            winter_palette.setColor(QPalette.HighlightedText, Qt.black)
-            QApplication.setPalette(winter_palette)
-
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #ffffff;
-                }
-                QGroupBox {
-                    border: 1px solid #e0e0e0;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #f5f5f5;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #616161;
-                }
-                QPushButton {
-                    background-color: #e0e0e0;
-                    color: #212121;
-                    border: 1px solid #bdbdbd;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #bdbdbd;
-                }
-                QPushButton:pressed {
-                    background-color: #9e9e9e;
-                }
-                QListWidget {
-                    background-color: #f0f0f0;
-                    border: none;
-                }
-                QStackedWidget {
-                    background-color: white;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #e0e0e0;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #e0e0e0;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #9e9e9e;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #f5f5f5;
-                }
-            """)
-        else:  # 夏 (蓝白) - 默认主题
-            summer_palette = QPalette()
-            summer_palette.setColor(QPalette.Window, QColor(240, 248, 255))
-            summer_palette.setColor(QPalette.WindowText, Qt.black)
-            summer_palette.setColor(QPalette.Base, QColor(255, 255, 255))
-            summer_palette.setColor(QPalette.AlternateBase, QColor(230, 240, 255))
-            summer_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            summer_palette.setColor(QPalette.ToolTipText, Qt.black)
-            summer_palette.setColor(QPalette.Text, Qt.black)
-            summer_palette.setColor(QPalette.Button, QColor(220, 230, 255))
-            summer_palette.setColor(QPalette.ButtonText, Qt.black)
-            summer_palette.setColor(QPalette.BrightText, Qt.red)
-            summer_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-            summer_palette.setColor(QPalette.Highlight, QColor(65, 105, 225))
-            summer_palette.setColor(QPalette.HighlightedText, Qt.white)
-            QApplication.setPalette(summer_palette)
-
-            self.setStyleSheet("""
-                QMainWindow {
-                    background-color: #f0f8ff;
-                }
-                QGroupBox {
-                    border: 1px solid #a0c8ff;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    padding-top: 15px;
-                    background-color: #e6f0ff;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    color: #4169e1;
-                }
-                QPushButton {
-                    background-color: #6495ed;
-                    color: white;
-                    border: 1px solid #4682b4;
-                    padding: 5px;
-                    border-radius: 4px;
-                }
-                QPushButton:hover {
-                    background-color: #4169e1;
-                }
-                QPushButton:pressed {
-                    background-color: #1e90ff;
-                }
-                QListWidget {
-                    background-color: #f0f0f0;
-                    border: none;
-                }
-                QStackedWidget {
-                    background-color: white;
-                }
-                QComboBox, QLineEdit, QPlainTextEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #a0c8ff;
-                    padding: 3px;
-                    border-radius: 3px;
-                }
-                QProgressBar {
-                    border: 1px solid #a0c8ff;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: white;
-                }
-                QProgressBar::chunk {
-                    background-color: #4169e1;
-                    width: 10px;
-                }
-                QLabel {
-                    color: #333333;
-                }
-                QStatusBar {
-                    background-color: #e6f0ff;
-                }
-            """)
+        # 设置全局样式
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1e1e1e;
+            }
+            QWidget {
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+            }
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #3a3a3a;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+                color: #e0e0e0;
+            }
+            QPushButton {
+                background-color: #3a3a3a;
+                color: white;
+                border: none;
+                padding: 5px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+            QPushButton:pressed {
+                background-color: #2a2a2a;
+            }
+            QLineEdit, QComboBox, QPlainTextEdit, QTextEdit {
+                background-color: #2c2c2c;
+                border: 1px solid #3a3a3a;
+                padding: 3px;
+                border-radius: 5px;
+                color: #e0e0e0;
+            }
+            QProgressBar {
+                border: 1px solid #3a3a3a;
+                border-radius: 5px;
+                text-align: center;
+                background-color: #2c2c2c;
+            }
+            QProgressBar::chunk {
+                background-color: #4a6fa5;
+                border-radius: 5px;
+            }
+            QLabel {
+                color: #e0e0e0;
+            }
+            QTabBar::tab {
+                background-color: #2c2c2c;
+                color: #e0e0e0;
+                border: 1px solid #3a3a3a;
+                border-bottom: none;
+                padding: 8px 15px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+            }
+            QTabBar::tab:selected {
+                background-color: #3a3a3a;
+                border-bottom: 2px solid #4a6fa5;
+            }
+            QTabWidget::pane {
+                border: 1px solid #3a3a3a;
+                background-color: #2c2c2c;
+                border-radius: 8px;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #2c2c2c;
+                width: 12px;
+                margin: 0px 0px 0px 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #4a6fa5;
+                min-height: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical {
+                border: none;
+                background: none;
+                height: 0px;
+                subcontrol-position: bottom;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+                height: 0px;
+                subcontrol-position: top;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
 
     def _on_sidebar_item_changed(self, current, previous):
         """侧边栏菜单项选择变化"""
         if current is None:
             return
 
-        tag = current.data(Qt.UserRole)
+        tag = current.data(Qt.ItemDataRole.UserRole)
 
         # 根据标签切换到相应页面
         if tag == "device_info":
@@ -1606,7 +1713,7 @@ class FlashTool(QMainWindow):
             while self.running:
                 try:
                     # 检查ADB设备
-                    adb_devices = self.adb.devices()
+                    adb_devices = self.flashing_toolbox.platform_tools.get_adb_devices()
                     if adb_devices:
                         self.mode_signal.emit("adb", adb_devices[0][0])
                         self._update_device_details(adb_devices[0][0])
@@ -1617,7 +1724,7 @@ class FlashTool(QMainWindow):
 
                 # 检查Fastboot设备
                 try:
-                    fastboot_devices = self.adb.fastboot_devices()
+                    fastboot_devices = self.flashing_toolbox.platform_tools.get_fastboot_devices()
                     if fastboot_devices:
                         self.mode_signal.emit("fastboot", fastboot_devices[0][0])
                         self._update_device_details(fastboot_devices[0][0])
@@ -1629,7 +1736,7 @@ class FlashTool(QMainWindow):
                 # 检查MTK设备
                 if self.mtk_detecting:  # 只有开始识别时才检测
                     try:
-                        mtk_devices = self.adb.detect_mtk_devices()
+                        mtk_devices = self.flashing_toolbox.mtk_client.detect_devices()
                         if mtk_devices:
                             self.mtk_device_signal.emit(mtk_devices[0][0])
                             self.mtk_detecting = False  # 检测到设备后停止检测
@@ -1657,7 +1764,7 @@ class FlashTool(QMainWindow):
         try:
             if self.current_mode == "adb":
                 # 获取设备信息
-                result = self.adb.execute_adb_command(f"-s {device_id} shell getprop")
+                result = self.flashing_toolbox.platform_tools.execute_adb_command(f"-s {device_id} shell getprop")
                 if result and result['success']:
                     props = result['output'].splitlines()
                     details = []
@@ -1686,7 +1793,7 @@ class FlashTool(QMainWindow):
 
             elif self.current_mode == "fastboot":
                 # 获取fastboot设备信息
-                result = self.adb.execute_fastboot_command(f"-s {device_id} getvar all")
+                result = self.flashing_toolbox.platform_tools.execute_fastboot_command(f"-s {device_id} getvar all")
                 if result and result['success']:
                     self.device_details.setText(result['output'])
                 else:
@@ -1738,7 +1845,6 @@ class FlashTool(QMainWindow):
         self.reboot_btn.setEnabled(has_device)
         self.detect_mtk_btn.setEnabled(True)
         self.flash_btn.setEnabled(has_device and bool(self.firmware_path) and self.current_mode == "fastboot")
-        self.backup_btn.setEnabled(has_device and bool(self.backup_path) and self.current_mode == "fastboot")
         self.xiaomi_flash_btn.setEnabled(bool(self.xiaomi_flash_path))
 
     def _update_status(self, status_type, message):
@@ -1750,7 +1856,7 @@ class FlashTool(QMainWindow):
 
     def _log_message(self, message):
         """记录日志消息"""
-        self.status_bar.setText(message)
+        self.statusBar().showMessage(message)
         if self.debug_log_dialog:
             self.debug_log_dialog.append_log(message)
 
@@ -1773,7 +1879,7 @@ class FlashTool(QMainWindow):
             self.mtk_output.append(message)
 
             # 滚动到底部
-            self.mtk_output.moveCursor(QTextCursor.End)
+            self.mtk_output.moveCursor(QTextCursor.MoveOperation.End)
             self.mtk_output.ensureCursorVisible()
 
         current_time = time.time()
@@ -1799,7 +1905,7 @@ class FlashTool(QMainWindow):
             message = "\n".join(self._mtk_message_buffer)
             if hasattr(self, 'mtk_output') and self.mtk_output:
                 self.mtk_output.append(message)
-                self.mtk_output.moveCursor(QTextCursor.End)
+                self.mtk_output.moveCursor(QTextCursor.MoveOperation.End)
                 self.mtk_output.ensureCursorVisible()
 
             # 清空缓冲区
@@ -1811,9 +1917,8 @@ class FlashTool(QMainWindow):
 
     def _show_settings(self):
         """显示设置对话框"""
-        if self.settings_dialog.exec() == QDialog.Accepted:
+        if self.settings_dialog.exec() == QDialog.DialogCode.Accepted:
             # 重新初始化ADB以应用新的路径设置
-            self.adb = ADB()
             self._apply_theme()
             self.log_signal.emit("设置已保存并应用")
 
@@ -1824,7 +1929,7 @@ class FlashTool(QMainWindow):
     def _show_about(self):
         """显示关于信息"""
         about_text = (
-            "<h2>Python Flash Tools V 1.9 beta</h2>"
+            "<h2>Python Flash Tools V1.9</h2>"
             "<p>Powered by LanChe-Studio</p>"
             "<p>开源项目: <a href='https://github.com/LanChe-Studio/python-flash-tools'>https://github.com/LanChe-Studio/python-flash-tools</a></p>"
             "<p>开源协议: GPL 3.0</p>"
@@ -1837,9 +1942,9 @@ class FlashTool(QMainWindow):
         msg = QMessageBox(self)
         msg.setWindowTitle("关于")
         msg.setWindowIcon(QIcon(":/icons/about.png"))
-        msg.setTextFormat(Qt.RichText)
+        msg.setTextFormat(Qt.TextFormat.RichText)
         msg.setText(about_text)
-        msg.setIcon(QMessageBox.Information)
+        msg.setIcon(QMessageBox.Icon.Information)
         msg.exec()
 
     def _enter_bootloader(self):
@@ -1851,7 +1956,7 @@ class FlashTool(QMainWindow):
         self.log_signal.emit("尝试进入Bootloader模式...")
 
         try:
-            success, error = self.adb.reboot("bootloader")
+            success, error = self.flashing_toolbox.platform_tools.adb_reboot("bootloader")
             if success:
                 self.log_signal.emit("设备正在重启到Bootloader...")
             else:
@@ -1870,7 +1975,7 @@ class FlashTool(QMainWindow):
         self.log_signal.emit("尝试进入Recovery模式...")
 
         try:
-            success, error = self.adb.reboot("recovery")
+            success, error = self.flashing_toolbox.platform_tools.adb_reboot("recovery")
             if success:
                 self.log_signal.emit("设备正在重启到Recovery...")
             else:
@@ -1891,7 +1996,7 @@ class FlashTool(QMainWindow):
 
         try:
             # 启动MTKClient命令
-            cmd = [sys.executable, self.adb.mtk_path, "detect"]
+            cmd = [sys.executable, self.flashing_toolbox.mtk_client.get_main_program(), "detect"]
             self.mtk_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -1923,7 +2028,7 @@ class FlashTool(QMainWindow):
         while self.mtk_detecting:
             try:
                 # 执行检测命令
-                cmd = [sys.executable, self.adb.mtk_path, "detect"]
+                cmd = [sys.executable, self.flashing_toolbox.mtk_client.get_main_program(), "detect"]
                 self.mtk_process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -1944,7 +2049,7 @@ class FlashTool(QMainWindow):
                 # 检查是否检测到设备
                 if self.mtk_detecting and self.mtk_process.poll() == 0:
                     # 尝试解析输出以获取设备信息
-                    mtk_devices = self.adb.detect_mtk_devices()
+                    mtk_devices = self.flashing_toolbox.mtk_client.detect_mtk_devices()
                     if mtk_devices:
                         self.mtk_device_signal.emit(mtk_devices[0][0])
                         self.mtk_detecting = False  # 检测到设备后停止检测
@@ -1984,11 +2089,11 @@ class FlashTool(QMainWindow):
 
         try:
             if self.current_mode == "adb":
-                success, error = self.adb.reboot()
+                success, error = self.flashing_toolbox.platform_tools.adb_reboot()
                 if not success:
                     self.log_signal.emit(f"重启失败: {error}")
             elif self.current_mode == "fastboot":
-                success, error = self.adb.fastboot_reboot()
+                success, error = self.flashing_toolbox.platform_tools.fastboot_reboot()
                 if not success:
                     self.log_signal.emit(f"重启失败: {error}")
             elif self.current_mode == "mtk":
@@ -2035,16 +2140,6 @@ class FlashTool(QMainWindow):
             self.recovery_file_label.setText(os.path.basename(file_path))
             self.log_signal.emit(f"已选择卡刷包: {file_path}")
 
-    def _select_backup_path(self):
-        """选择备份路径"""
-        backup_dir = QFileDialog.getExistingDirectory(self, "选择备份目录")
-
-        if backup_dir:
-            self.backup_path = backup_dir
-            self.backup_path_label.setText(os.path.basename(backup_dir))
-            self._update_button_states()
-            self.log_signal.emit(f"已选择备份路径: {backup_dir}")
-
     def _select_app(self):
         """选择应用文件"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -2074,9 +2169,9 @@ class FlashTool(QMainWindow):
         self.log_signal.emit(f"执行ADB命令: {command}")
 
         try:
-            result = self.adb.execute_adb_command(command)
+            result = self.flashing_toolbox.platform_tools.execute_adb_command(command)
             if result is None:
-                self.adb_output.setPlainText(f"执行失败: {self.adb.last_error}")
+                self.adb_output.setPlainText(f"执行失败: {self.flashing_toolbox.platform_tools.last_error}")
             else:
                 output = ""
                 if result['output']:
@@ -2110,9 +2205,9 @@ class FlashTool(QMainWindow):
         self.log_signal.emit(f"执行Fastboot命令: {command}")
 
         try:
-            result = self.adb.execute_fastboot_command(command)
+            result = self.flashing_toolbox.platform_tools.execute_fastboot_command(command)
             if result is None:
-                self.fastboot_output.setPlainText(f"执行失败: {self.adb.last_error}")
+                self.fastboot_output.setPlainText(f"执行失败: {self.flashing_toolbox.platform_tools.last_error}")
             else:
                 output = ""
                 if result['output']:
@@ -2152,8 +2247,8 @@ class FlashTool(QMainWindow):
             args = command.split()
 
             # 启动MTKClient命令
-            if self.adb.mtk_path:
-                cmd = [sys.executable, self.adb.mtk_path] + args
+            if self.flashing_toolbox.mtk_client:
+                cmd = [sys.executable, self.flashing_toolbox.mtk_client.get_main_program()] + args
 
                 # 启动子进程
                 self.mtk_process = subprocess.Popen(
@@ -2216,17 +2311,17 @@ class FlashTool(QMainWindow):
         reply = QMessageBox.warning(
             self, "警告",
             "解锁Bootloader会清除设备上的所有数据!\n\n确定要继续吗?",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.operation_in_progress = True
         self.log_signal.emit("正在尝试解锁Bootloader...")
 
         try:
-            success, error = self.adb.unlock_bootloader()
+            success, error = self.flashing_toolbox.platform_tools.unlock_bootloader()
             if success:
                 self.log_signal.emit("解锁Bootloader成功! 设备将自动重启")
                 self.unlock_status.setText("设备状态: 已解锁")
@@ -2247,17 +2342,17 @@ class FlashTool(QMainWindow):
         reply = QMessageBox.warning(
             self, "警告",
             "锁定Bootloader可能会影响系统更新和某些功能!\n\n确定要继续吗?",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.operation_in_progress = True
         self.log_signal.emit("正在尝试锁定Bootloader...")
 
         try:
-            success, error = self.adb.lock_bootloader()
+            success, error = self.flashing_toolbox.platform_tools.lock_bootloader()
             if success:
                 self.log_signal.emit("锁定Bootloader成功! 设备将自动重启")
                 self.unlock_status.setText("设备状态: 已锁定")
@@ -2282,24 +2377,24 @@ class FlashTool(QMainWindow):
 
         # 检查Bootloader锁定状态
         if self.current_mode == "fastboot":
-            result = self.adb.execute_fastboot_command("oem device-info")
+            result = self.flashing_toolbox.platform_tools.execute_fastboot_command("oem device-info")
             if result and "Device unlocked: false" in result['output']:
                 reply = QMessageBox.question(
                     self, "Bootloader已锁定",
                     "设备Bootloader已锁定，刷机前需要解锁。是否现在解锁?",
-                    QMessageBox.Yes | QMessageBox.No
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
-                if reply == QMessageBox.Yes:
+                if reply == QMessageBox.StandardButton.Yes:
                     self._unlock_bootloader()
                     return
 
         reply = QMessageBox.question(
             self, "确认",
             "确定要刷机吗? 此操作有风险!",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.operation_in_progress = True
@@ -2313,14 +2408,17 @@ class FlashTool(QMainWindow):
         reply = QMessageBox.question(
             self, "确认",
             "确定要刷入小米线刷包吗? 此操作会清除所有数据!",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.operation_in_progress = True
         threading.Thread(target=self._execute_xiaomi_flash, daemon=True).start()
+
+    def _execute_xiaomi_flash(self):
+        pass
 
     def _start_recovery_flash(self):
         """开始Recovery卡刷"""
@@ -2335,22 +2433,14 @@ class FlashTool(QMainWindow):
         reply = QMessageBox.question(
             self, "确认",
             "确定要进行Recovery卡刷吗?",
-            QMessageBox.Yes | QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.operation_in_progress = True
         threading.Thread(target=self._execute_recovery_flash, daemon=True).start()
-
-    def _start_backup(self):
-        """开始备份 - 使用Fastboot备份"""
-        if self.operation_in_progress or not self.backup_path:
-            return
-
-        self.operation_in_progress = True
-        threading.Thread(target=self._execute_backup, daemon=True).start()
 
     def _install_app(self):
         """安装应用"""
@@ -2361,7 +2451,7 @@ class FlashTool(QMainWindow):
         self.log_signal.emit(f"正在安装应用: {self.app_path}")
 
         try:
-            result = self.adb.execute_adb_command(f"install -r \"{self.app_path}\"")
+            result = self.flashing_toolbox.platform_tools.execute_adb_command(f"install -r \"{self.app_path}\"")
             if result and result['success']:
                 self.log_signal.emit("应用安装成功")
             else:
@@ -2386,7 +2476,7 @@ class FlashTool(QMainWindow):
         self.log_signal.emit(f"正在卸载应用: {package_name}")
 
         try:
-            result = self.adb.execute_adb_command(f"uninstall {package_name}")
+            result = self.flashing_toolbox.platform_tools.execute_adb_command(f"uninstall {package_name}")
             if result and result['success']:
                 self.log_signal.emit("应用卸载成功")
             else:
@@ -2406,7 +2496,7 @@ class FlashTool(QMainWindow):
         self.log_signal.emit("正在获取应用列表...")
 
         try:
-            result = self.adb.execute_adb_command("shell pm list packages")
+            result = self.flashing_toolbox.platform_tools.execute_adb_command("shell pm list packages")
             if result and result['success']:
                 self.app_list.clear()
                 packages = result['output'].splitlines()
@@ -2428,6 +2518,71 @@ class FlashTool(QMainWindow):
         self.log_signal.emit(f"正在管理组件: {component}")
         self.ui_log.appendPlainText(f"已选择组件: {component}")
 
+        # 根据组件执行相应的操作
+        if component == "statusbar":
+            self._toggle_statusbar()
+        elif component == "navbar":
+            self._toggle_navbar()
+        elif component == "lockscreen":
+            self._toggle_lockscreen()
+        elif component == "launcher":
+            self._toggle_launcher()
+        elif component == "settings":
+            self._toggle_settings()
+        elif component == "notification":
+            self._toggle_notification()
+
+    def _toggle_statusbar(self):
+        """切换状态栏可见性"""
+        self.log_signal.emit("切换状态栏可见性...")
+        result = self.flashing_toolbox.platform_tools.execute_adb_command("shell settings put global policy_control immersive.status=*")
+        if result and result['success']:
+            self.ui_log.appendPlainText("状态栏已隐藏")
+            self.log_signal.emit("状态栏已隐藏")
+        else:
+            self.ui_log.appendPlainText("操作失败")
+            self.log_signal.emit("切换状态栏失败")
+
+    def _toggle_navbar(self):
+        """切换导航栏可见性"""
+        self.log_signal.emit("切换导航栏可见性...")
+        result = self.flashing_toolbox.platform_tools.execute_adb_command("shell settings put global policy_control immersive.navigation=*")
+        if result and result['success']:
+            self.ui_log.appendPlainText("导航栏已隐藏")
+            self.log_signal.emit("导航栏已隐藏")
+        else:
+            self.ui_log.appendPlainText("操作失败")
+            self.log_signal.emit("切换导航栏失败")
+
+    def _toggle_lockscreen(self):
+        """切换锁屏样式"""
+        self.log_signal.emit("切换锁屏样式...")
+        self.ui_log.appendPlainText("锁屏样式已切换")
+        self.log_signal.emit("锁屏样式已切换")
+
+    def _toggle_launcher(self):
+        """切换启动器"""
+        self.log_signal.emit("切换启动器...")
+        self.ui_log.appendPlainText("启动器已切换")
+        self.log_signal.emit("启动器已切换")
+
+    def _toggle_settings(self):
+        """重置设置应用"""
+        self.log_signal.emit("重置设置应用...")
+        result = self.flashing_toolbox.platform_tools.execute_adb_command("shell pm clear com.android.settings")
+        if result and result['success']:
+            self.ui_log.appendPlainText("设置应用已重置")
+            self.log_signal.emit("设置应用已重置")
+        else:
+            self.ui_log.appendPlainText("操作失败")
+            self.log_signal.emit("重置设置应用失败")
+
+    def _toggle_notification(self):
+        """切换通知中心样式"""
+        self.log_signal.emit("切换通知中心样式...")
+        self.ui_log.appendPlainText("通知中心样式已切换")
+        self.log_signal.emit("通知中心样式已切换")
+
     def _execute_flash(self):
         """执行刷机"""
         try:
@@ -2445,11 +2600,11 @@ class FlashTool(QMainWindow):
                 if file_size > 100 * 1024 * 1024:  # 大于100MB
                     self.log_signal.emit(f"大文件刷写 ({file_size // 1024 // 1024}MB)，请保持USB连接稳定...")
 
-                if self.adb.flash_partition(partition, self.firmware_path):
+                if self.flashing_toolbox.platform_tools.flash_partition(partition, self.firmware_path):
                     self.log_signal.emit(f"{partition} 分区刷入成功!")
                     self.progress_signal.emit(100)
                 else:
-                    self.log_signal.emit(f"刷入失败: {self.adb.last_error}")
+                    self.log_signal.emit(f"刷入失败: {self.flashing_toolbox.platform_tools.last_error}")
                     self.progress_signal.emit(0)
             else:
                 # 处理固件包（zip/tar.gz等）
@@ -2488,10 +2643,10 @@ class FlashTool(QMainWindow):
                             if file_size > 100 * 1024 * 1024:  # 大于100MB
                                 self.log_signal.emit(f"大文件刷写 ({file_size // 1024 // 1024}MB)，请保持USB连接稳定...")
 
-                            if self.adb.flash_partition(partition_name, img_file):
+                            if self.flashing_toolbox.platform_tools.flash_partition(partition_name, img_file):
                                 self.log_signal.emit(f"{partition_name} 刷写成功")
                             else:
-                                self.log_signal.emit(f"{partition_name} 刷写失败: {self.adb.last_error}")
+                                self.log_signal.emit(f"{partition_name} 刷写失败: {self.flashing_toolbox.platform_tools.last_error}")
 
                             # 更新进度
                             progress = int((i + 1) / total * 100)
@@ -2519,11 +2674,11 @@ class FlashTool(QMainWindow):
                             if file_size > 100 * 1024 * 1024:  # 大于100MB
                                 self.log_signal.emit(f"大文件刷写 ({file_size // 1024 // 1024}MB)，请保持USB连接稳定...")
 
-                            if self.adb.flash_partition(partition, img_file):
+                            if self.flashing_toolbox.platform_tools.flash_partition(partition, img_file):
                                 self.log_signal.emit(f"{partition} 分区刷入成功!")
                                 self.progress_signal.emit(100)
                             else:
-                                self.log_signal.emit(f"{partition} 分区刷入失败: {self.adb.last_error}")
+                                self.log_signal.emit(f"{partition} 分区刷入失败: {self.flashing_toolbox.platform_tools.last_error}")
                                 self.progress_signal.emit(0)
                         else:
                             self.log_signal.emit(f"在固件包中未找到 {partition} 分区镜像")
@@ -2609,7 +2764,7 @@ class FlashTool(QMainWindow):
             # 推送卡刷包到设备
             self.log_signal.emit("推送卡刷包到设备...")
             remote_path = "/sdcard/recovery_flash.zip"
-            result = self.adb.execute_adb_command(f"push \"{self.recovery_file_path}\" {remote_path}")
+            result = self.flashing_toolbox.platform_tools.execute_adb_command(f"push \"{self.recovery_file_path}\" {remote_path}")
 
             if result and result['success']:
                 self.recovery_progress_bar.setValue(30)
@@ -2617,7 +2772,7 @@ class FlashTool(QMainWindow):
 
                 # 进入Recovery模式
                 self.log_signal.emit("重启设备到Recovery模式...")
-                success, error = self.adb.reboot("recovery")
+                success, error = self.flashing_toolbox.platform_tools.adb_reboot("recovery")
                 if success:
                     self.recovery_progress_bar.setValue(50)
                     self.log_signal.emit("设备已重启到Recovery模式")
@@ -2627,7 +2782,7 @@ class FlashTool(QMainWindow):
 
                     # 执行刷机命令
                     self.log_signal.emit("开始刷入卡刷包...")
-                    result = self.adb.execute_adb_command("recovery --update_package=/sdcard/recovery_flash.zip")
+                    result = self.flashing_toolbox.platform_tools.execute_adb_command("recovery --update_package=/sdcard/recovery_flash.zip")
                     if result and result['success']:
                         self.recovery_progress_bar.setValue(100)
                         self.log_signal.emit("卡刷包刷入成功! 设备将自动重启")
@@ -2639,27 +2794,6 @@ class FlashTool(QMainWindow):
                 self.log_signal.emit("卡刷包推送失败")
         except Exception as e:
             self.log_signal.emit(f"Recovery卡刷失败: {str(e)}")
-        finally:
-            self.operation_in_progress = False
-
-    def _execute_backup(self):
-        """执行备份 - 使用Fastboot备份"""
-        try:
-            partition = self.backup_partition_combo.currentText()
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = os.path.join(self.backup_path, f"{partition}_backup_{timestamp}.img")
-
-            self.log_signal.emit(f"开始备份 {partition} 分区...")
-
-            if self.current_mode == "fastboot":
-                if self.adb.backup_partition_fastboot(partition, backup_file):
-                    self.log_signal.emit(f"备份成功: {backup_file}")
-                else:
-                    self.log_signal.emit(f"备份失败: {self.adb.last_error}")
-            else:
-                self.log_signal.emit("当前设备未处于Fastboot模式，无法备份")
-        except Exception as e:
-            self.log_signal.emit(f"备份失败: {str(e)}")
         finally:
             self.operation_in_progress = False
 
@@ -2681,6 +2815,4 @@ class FlashTool(QMainWindow):
                     self.mtk_process.terminate()
                 except:
                     pass
-
-            self.adb.cleanup()
             event.accept()

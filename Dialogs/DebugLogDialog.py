@@ -1,7 +1,9 @@
+from PySide6.QtCore import QThread, QMetaObject, Q_ARG, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QVBoxLayout, QHBoxLayout,
                                QPushButton, QDialog,
-                               QTextEdit, QFileDialog, QMessageBox)
+                               QTextEdit, QFileDialog, QMessageBox, QApplication)
+
 
 class DebugLogDialog(QDialog):
     """Debug日志对话框"""
@@ -16,18 +18,30 @@ class DebugLogDialog(QDialog):
 
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
-        self.log_output.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #f0f0f0;")
+        self.log_output.setStyleSheet("""
+            font-family: monospace; 
+            font-size: 10pt; 
+            background-color: #2c2c2c; 
+            color: #e0e0e0;
+            border-radius: 5px;
+            padding: 5px;
+        """)
 
         # 添加按钮
         btn_layout = QHBoxLayout()
         self.clear_btn = QPushButton("清空日志")
-        self.clear_btn.setStyleSheet("padding: 6px;")
+        self.clear_btn.setStyleSheet("padding: 6px; border-radius: 5px;")
         self.clear_btn.clicked.connect(self.clear_log)
         self.save_btn = QPushButton("保存日志")
-        self.save_btn.setStyleSheet("padding: 6px;")
+        self.save_btn.setStyleSheet("padding: 6px; border-radius: 5px;")
         self.save_btn.clicked.connect(self.save_log)
         self.close_btn = QPushButton("关闭")
-        self.close_btn.setStyleSheet("background-color: #f44336; color: white; padding: 6px;")
+        self.close_btn.setStyleSheet("""
+            background-color: #f44336; 
+            color: white; 
+            padding: 6px;
+            border-radius: 5px;
+        """)
         self.close_btn.clicked.connect(self.close)
 
         btn_layout.addWidget(self.clear_btn)
@@ -44,8 +58,8 @@ class DebugLogDialog(QDialog):
         """安全添加日志 - 修复版本"""
         # 确保在主线程执行
         if not QThread.currentThread() is QApplication.instance().thread():
-            QMetaObject.invokeMethod(self, "append_log", Qt.QueuedConnection,
-                                     Q_ARG(str, message))
+            QMetaObject.invokeMethod(self, b"append_log", Qt.ConnectionType.QueuedConnection,
+                                     Q_ARG("QString", message))
             return
 
         # 使用文本追加而不是操作光标
