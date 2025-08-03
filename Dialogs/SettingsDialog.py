@@ -139,11 +139,11 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         """加载设置"""
-        self.adb_path_edit.setText(self.settings.value("adb_path", ""))
-        self.fastboot_path_edit.setText(self.settings.value("fastboot_path", ""))
-        self.mtk_path_edit.setText(self.settings.value("mtk_path", ""))
+        self.adb_path_edit.setText(str(self.settings.value("adb_path", "")))
+        self.fastboot_path_edit.setText(str(self.settings.value("fastboot_path", "")))
+        self.mtk_path_edit.setText(str(self.settings.value("mtk_path", "")))
         theme = self.settings.value("theme", "夏 (蓝白)")
-        index = self.theme_combo.findText(theme)
+        index = self.theme_combo.findText(str(theme))
         if index >= 0:
             self.theme_combo.setCurrentIndex(index)
 

@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import sys
 
 import pkg_resources
 
@@ -78,7 +79,7 @@ def backup_partition_fastboot(self, partition, output_path):
 
 def install_python_dependencies():
     """检测并安装必要的Python依赖"""
-    required = ['PySide6', 'pyserial', 'requests', 'pyusb', 'libusb1', 'protobuf']
+    required = ['PySide6', 'pyserial', 'requests', 'pyusb', 'libusb1', 'protobuf', 'colorama', 'pycryptodomex', 'fusepy']
     missing = []
 
     for package in required:
